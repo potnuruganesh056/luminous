@@ -1,0 +1,51 @@
+{
+    "1": {
+        "user_settings": {
+            "name": "testuser",
+            "email": "test@example.com",
+            "mobile": "1234567890",
+            "channel": "email",
+            "theme": "dark"
+        },
+        "rooms": [
+            {
+                "id": "1",
+                "name": "Hall",
+                "appliances": [
+                    {
+                        "id": "1",
+                        "name": "Main Light",
+                        "state": false,
+                        "locked": false,
+                        "timer": null,
+                        "relay_number": 1
+                    },
+                    {
+                        "id": "2",
+                        "name": "Fan",
+                        "state": false,
+                        "locked": false,
+                        "timer": null,
+                        "relay_number": 2
+                    },
+                    {
+                        "id": "3",
+                        "name": "Night Lamp",
+                        "state": false,
+                        "locked": false,
+                        "timer": null,
+                        "relay_number": 3
+                    },
+                    {
+                        "id": "4",
+                        "name": "A/C",
+                        "state": false,
+                        "locked": false,
+                        "timer": null,
+                        "relay_number": 4
+                    }
+                ]
+            }
+        ]
+    }
+}

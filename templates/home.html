@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+
+{% block title %}Home{% endblock %}
+
+{% block content %}
+<div class="container mx-auto">
+    <!-- Hero Section -->
+    <header class="py-20 px-4 text-center bg-gray-50 dark:bg-gray-950 rounded-xl transition-colors duration-500">
+        <h1 class="text-5xl md:text-6xl font-extrabold mb-4 text-primary-accent">Lumino'US'</h1>
+        <p class="text-xl md:text-2xl max-w-2xl mx-auto mb-8 text-gray-700 dark:text-gray-300">AI-Powered Smart Energy Automation System</p>
+        <p class="text-lg max-w-3xl mx-auto text-gray-600 dark:text-gray-400">
+            Lumino'US' is an intelligent lighting control system that uses a combination of computer vision and IoT to automate and optimize energy consumption. By using a custom-trained AI model, our system can detect human presence and lighting states in real time, making smart decisions to reduce electricity waste. This project aims to provide a cost-effective and scalable solution for both urban and rural environments, promoting sustainability and energy efficiency for a smarter future.
+        </p>
+    </header>
+
+    <div class="my-12">
+        <div class="text-center mb-8">
+            <h2 class="text-4xl font-bold text-gray-800 dark:text-gray-200">Our Mission and Advantages</h2>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            <!-- Advantage Card 1 -->
+            <div data-slot="card" class="bg-card text-card-foreground gap-6 rounded-xl border p-6 shadow-sm transition-all flex flex-col">
+                <div data-slot="card-header" class="grid auto-rows-min grid-rows-[auto_auto] items-start gap-1.5 has-data-[slot=card-action]:grid-cols-[1fr_auto]">
+                    <div class="flex items-center justify-between">
+                        <div data-slot="card-title" class="leading-none font-semibold cursor-pointer text-secondary-accent">High Accuracy</div>
+                    </div>
+                </div>
+                <div data-slot="card-content" class="flex-grow">
+                    <p class="text-gray-600 dark:text-gray-400">
+                        Our AI-driven system provides superior accuracy over traditional motion sensors by using computer vision to understand the environment in real-time. This eliminates false positives and ensures reliable automation.
+                    </p>
+                </div>
+            </div>
+
+            <!-- Advantage Card 2 -->
+            <div data-slot="card" class="bg-card text-card-foreground gap-6 rounded-xl border p-6 shadow-sm transition-all flex flex-col">
+                <div data-slot="card-header" class="grid auto-rows-min grid-rows-[auto_auto] items-start gap-1.5 has-data-[slot=card-action]:grid-cols-[1fr_auto]">
+                    <div class="flex items-center justify-between">
+                        <div data-slot="card-title" class="leading-none font-semibold cursor-pointer text-secondary-accent">Cost-Effective</div>
+                    </div>
+                </div>
+                <div data-slot="card-content" class="flex-grow">
+                    <p class="text-gray-600 dark:text-gray-400">
+                        The system works with your existing standard lights and appliances, eliminating the need for expensive smart bulbs or proprietary hubs, making it affordable and accessible.
+                    </p>
+                </div>
+            </div>
+            
+            <!-- Advantage Card 3 -->
+            <div data-slot="card" class="bg-card text-card-foreground gap-6 rounded-xl border p-6 shadow-sm transition-all flex flex-col">
+                <div data-slot="card-header" class="grid auto-rows-min grid-rows-[auto_auto] items-start gap-1.5 has-data-[slot=card-action]:grid-cols-[1fr_auto]">
+                    <div class="flex items-center justify-between">
+                        <div data-slot="card-title" class="leading-none font-semibold cursor-pointer text-secondary-accent">Remote Control & Scalability</div>
+                    </div>
+                </div>
+                <div data-slot="card-content" class="flex-grow">
+                    <p class="text-gray-600 dark:text-gray-400">
+                        Access and control your devices from anywhere in the world through a responsive web application. The modular architecture allows for easy expansion to manage multiple rooms and appliances.
+                    </p>
+                </div>
+            </div>
+
+            <!-- Advantage Card 4 -->
+            <div data-slot="card" class="bg-card text-card-foreground gap-6 rounded-xl border p-6 shadow-sm transition-all flex flex-col">
+                <div data-slot="card-header" class="grid auto-rows-min grid-rows-[auto_auto] items-start gap-1.5 has-data-[slot=card-action]:grid-cols-[1fr_auto]">
+                    <div class="flex items-center justify-between">
+                        <div data-slot="card-title" class="leading-none font-semibold cursor-pointer text-secondary-accent">User-Centric Design</div>
+                    </div>
+                </div>
+                <div data-slot="card-content" class="flex-grow">
+                    <p class="text-gray-600 dark:text-gray-400">
+                        Our dashboard emphasizes simplicity and transparency, offering manual overrides, timers, and an AI-lock feature to ensure you always have complete control over your home.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

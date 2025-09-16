@@ -1,0 +1,8 @@
+flask
+flask-login
+paho-mqtt
+werkzeug
+gunicorn
+requests
+flask_mail
+Authlib

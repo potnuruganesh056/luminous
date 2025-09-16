@@ -1,0 +1,181 @@
+/* * This file contains custom CSS rules for the entire web application.
+ * It's designed to be minimalist, functional, and support a dark/light theme.
+ */
+
+:root {
+    /* Light Theme */
+    --bg-main-light: #FFFFFF;
+    --bg-card-light: #F5F7FA;
+    --text-card-foreground-light: #2A3132;
+    --text-main-light: #2A3132;
+    --border-color-light: #E5E7EB;
+    --primary-accent-light: #FB6542;
+    --secondary-accent-light: #375E97;
+    --bg-muted-light: #E5E7EB;
+    --text-muted-foreground-light: #6B7280;
+    --text-icon-light: #6B7280;
+    --toggle-unchecked-light: #D1D5DB;
+
+    /* Dark Theme */
+    --bg-main-dark: #101820;
+    --bg-card-dark: #1E2761;
+    --text-card-foreground-dark: #FFFFFF;
+    --text-main-dark: #DADADA;
+    --border-color-dark: #374151;
+    --primary-accent-dark: #FEE715;
+    --secondary-accent-dark: #408EC6;
+    --bg-muted-dark: #374151;
+    --text-muted-foreground-dark: #9CA3AF;
+    --text-icon-dark: #9CA3AF;
+    --toggle-unchecked-dark: #4B5563;
+}
+
+/* Base colors for dark/light themes */
+.bg-primary-accent {
+    background-color: var(--primary-accent-light);
+}
+
+.text-primary-accent {
+    color: var(--primary-accent-light);
+}
+
+.bg-secondary-accent {
+    background-color: var(--secondary-accent-light);
+}
+
+.text-secondary-accent {
+    color: var(--secondary-accent-light);
+}
+
+.bg-card {
+    background-color: var(--bg-card-light);
+}
+
+.text-card-foreground {
+    color: var(--text-card-foreground-light);
+}
+
+.border {
+    border-color: var(--border-color-light);
+}
+
+.bg-muted {
+    background-color: var(--bg-muted-light);
+}
+
+.text-muted-foreground {
+    color: var(--text-muted-foreground-light);
+}
+
+.text-icon {
+    color: var(--text-icon-light);
+}
+
+.dark .bg-primary-accent {
+    background-color: var(--primary-accent-dark);
+}
+
+.dark .text-primary-accent {
+    color: var(--primary-accent-dark);
+}
+
+.dark .bg-secondary-accent {
+    background-color: var(--secondary-accent-dark);
+}
+
+.dark .text-secondary-accent {
+    color: var(--secondary-accent-dark);
+}
+
+.dark .bg-card {
+    background-color: var(--bg-card-dark);
+}
+
+.dark .text-card-foreground {
+    color: var(--text-card-foreground-dark);
+}
+
+.dark .border {
+    border-color: var(--border-color-dark);
+}
+
+.dark .bg-muted {
+    background-color: var(--bg-muted-dark);
+}
+
+.dark .text-muted-foreground {
+    color: var(--text-muted-foreground-dark);
+}
+
+.dark .text-icon {
+    color: var(--text-icon-dark);
+}
+
+/* Common Styles */
+html {
+    scroll-behavior: smooth;
+}
+
+body {
+    transition: background-color 0.5s, color 0.5s;
+    font-family: 'Inter', sans-serif;
+}
+
+/* Sidebar Navigation Links */
+.nav-link {
+    @apply flex items-center px-4 py-2 rounded-md font-medium transition-colors;
+    @apply text-gray-700 hover:bg-gray-300 dark:text-gray-300 dark:hover:bg-gray-700;
+}
+.nav-link.active {
+    @apply bg-secondary-accent text-white hover:bg-secondary-accent dark:bg-secondary-accent dark:hover:bg-secondary-accent;
+    font-weight: bold;
+}
+
+/* Custom styles for the toggle switch (button) */
+.toggle-switch-button {
+    @apply peer data-[state=checked]:bg-green-600 data-[state=unchecked]:bg-toggle-unchecked focus-visible:ring-secondary-accent focus-visible:ring-offset-2 focus-visible:ring-offset-background inline-flex h-[28px] w-12 shrink-0 items-center rounded-full border-2 border-transparent shadow-xs transition-colors outline-none focus-visible:ring-2 disabled:cursor-not-allowed disabled:opacity-50;
+}
+.bg-toggle-unchecked {
+    background-color: var(--toggle-unchecked-light);
+}
+.dark .bg-toggle-unchecked {
+    background-color: var(--toggle-unchecked-dark);
+}
+
+.toggle-switch-button[data-state="unchecked"] span {
+    transform: translateX(2px);
+}
+.toggle-switch-button[data-state="checked"] span {
+    transform: translateX(calc(100% + 2px));
+}
+
+.toggle-switch-button span {
+    @apply bg-white pointer-events-none block h-5 w-5 rounded-full ring-0 transition-transform;
+}
+
+/* Chart Buttons */
+.chart-btn {
+    @apply text-gray-700 dark:text-gray-300 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600;
+}
+.chart-btn.active {
+    @apply bg-secondary-accent text-white hover:bg-opacity-80 dark:bg-secondary-accent dark:hover:bg-opacity-80;
+}
+
+/* Loading Animation */
+.loader-circle {
+    border: 5px solid #e2e8f0;
+    border-top: 5px solid var(--primary-accent-light);
+    border-radius: 50%;
+    width: 50px;
+    height: 50px;
+    animation: spin 1.5s linear infinite;
+}
+
+.dark .loader-circle {
+    border-top: 5px solid var(--primary-accent-dark);
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}

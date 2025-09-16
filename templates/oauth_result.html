@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Luminous Home System - OAuth Result</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #f4f4f4;
+            margin: 0;
+        }
+        .container {
+            max-width: 440px;
+            margin: 60px auto;
+            background: #fff;
+            border-radius: 12px;
+            box-shadow: 0 6px 18px rgba(0,0,0,0.10);
+            padding: 38px 32px 40px 32px;
+            text-align: center;
+        }
+        .logo {
+            width: 70px;
+            margin-bottom: 20px;
+        }
+        .success {
+            color: #28a745;
+        }
+        .error {
+            color: #dc3545;
+        }
+        .btn {
+            display: inline-block;
+            margin-top: 28px;
+            padding: 10px 26px;
+            font-size: 1rem;
+            background: #007bff;
+            color: #fff;
+            border-radius: 5px;
+            text-decoration: none;
+            transition: background 0.18s;
+        }
+        .btn:hover {
+            background: #0056b3;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Replace src with your actual logo path -->
+        <img src="/static/logo.png" alt="Luminous Logo" class="logo">
+        <h2 class="{{ status }}">{{ 'Success!' if status == 'success' else 'Error' }}</h2>
+        <p class="{{ status }}">{{ message }}</p>
+        <a href="{{ url_for('home') }}" class="btn">Go to Dashboard</a>
+    </div>
+</body>
+</html>
