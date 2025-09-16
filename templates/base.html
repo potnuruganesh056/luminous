@@ -210,6 +210,20 @@
                 console.error("Failed to fetch user name:", error);
             }
         };
+       
+        function performLogout() {
+             console.log("Clearing user data from browser...");
+         
+             // 1. Clear local storage, which might contain theme preferences or other data.
+            localStorage.clear();
+         
+             // 2. Clear session storage, which might contain temporary session data.
+            sessionStorage.clear();
+         
+             // 3. Redirect to the server's logout route to destroy the secure session cookie.
+            window.location.href = "{{ url_for('logout') }}";
+        }
+
         
         // Mobile sidebar toggle
         document.getElementById('mobile-menu-btn').addEventListener('click', () => {
