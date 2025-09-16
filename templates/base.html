@@ -63,9 +63,9 @@
                     <img id="user-picture" src="https://via.placeholder.com/150" alt="Profile Picture" class="w-10 h-10 rounded-full object-cover">
                     <span id="user-name" class="font-semibold">Guest</span>
                 </div>
-                <a href="{{ url_for('logout') }}" class="nav-link w-full text-center bg-gray-600 hover:bg-gray-700 dark:bg-gray-700 dark:hover:bg-gray-600 text-white font-bold">
-                    <i class="fas fa-sign-out-alt mr-2"></i>Logout
-                </a>
+                <button onclick="performLogout()" class="nav-link w-full text-center bg-gray-600 hover:bg-gray-700 dark:bg-gray-700 dark:hover:bg-gray-600 text-white font-bold">
+                   <i class="fas fa-sign-out-alt mr-2"></i>Logout
+               </button>
             </div>
         </aside>
 
