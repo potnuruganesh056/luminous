@@ -1601,7 +1601,7 @@ def error_page():
 # in your 'templates' directory.
 
 if __name__ == '__main__':
-    generate_analytics_data()
+    # generate_analytics_data()
     run_mqtt_thread()
     port = int(os.environ.get('PORT', 5000))
     app.run(host='0.0.0.0', port=port, debug=True)
