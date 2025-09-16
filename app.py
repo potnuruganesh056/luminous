@@ -1620,6 +1620,8 @@ def link_github():
     # If not linked, proceed to GitHub
     redirect_uri = url_for('link_authorize_github', _external=True)
     return github_link.authorize_redirect(redirect_uri)
+
+@app.route('link/google/callback')
 @login_required
 def link_authorize_google():
     """Handles the callback after the user authorizes Google linking."""
