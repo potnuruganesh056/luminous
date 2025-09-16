@@ -87,22 +87,19 @@
     </div>
 </div>
 <script>
+    // Replace your entire existing fetchUserSettings function with this one
     const fetchUserSettings = async () => {
         try {
             const response = await fetch('/api/get-user-settings');
             if (!response.ok) throw new Error('Failed to fetch settings.');
             const settings = await response.json();
             
-            // --- Populate the separate boxes ---
-    
-            // 1. Populate Profile Info Card
+            // 1. Populate the main Profile Info Card
             document.getElementById('profile-picture').src = settings.picture || 'https://via.placeholder.com/150';
             document.getElementById('profile-name').value = settings.name || '';
             document.getElementById('profile-mobile').value = settings.mobile || '';
-            document.getElementById('ai-control-interval').value = settings.ai_control_interval || 5;
     
-    
-            // 2. Populate Google Account Card
+            // 2. Populate the Google Account Card (conditionally)
             const googleBox = document.getElementById('google-account-box');
             if (settings.google_id) {
                 googleBox.innerHTML = `
@@ -113,17 +110,15 @@
                             <p class="font-semibold text-lg">${settings.name}</p>
                             <p class="text-sm text-gray-500">${settings.email}</p>
                         </div>
-                    </div>
-                `;
+                    </div>`;
             } else {
                 googleBox.innerHTML = `
                     <h2 class="text-2xl font-bold mb-4">Google Account</h2>
                     <p class="text-gray-500 mb-4">Your account is not linked to Google.</p>
-                    <a href="{{ url_for('link_google') }}" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-bold inline-block">Link Google Account</a>
-                `;
+                    <a href="{{ url_for('link_google') }}" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-bold inline-block">Link Google Account</a>`;
             }
     
-            // 3. Populate GitHub Account Card
+            // 3. Populate the GitHub Account Card (conditionally)
             const githubBox = document.getElementById('github-account-box');
             if (settings.github_id) {
                 githubBox.innerHTML = `
@@ -134,14 +129,12 @@
                             <p class="font-semibold text-lg">${settings.name}</p>
                             <a href="${settings.github_profile_url || '#'}" target="_blank" class="text-sm text-blue-500 hover:underline">${settings.github_profile_url || 'Profile URL not found'}</a>
                         </div>
-                    </div>
-                `;
+                    </div>`;
             } else {
                 githubBox.innerHTML = `
                     <h2 class="text-2xl font-bold mb-4">GitHub Account</h2>
                     <p class="text-gray-500 mb-4">Your account is not linked to GitHub.</p>
-                    <a href="{{ url_for('link_github') }}" class="px-4 py-2 bg-gray-800 text-white rounded-lg hover:bg-gray-900 font-bold inline-block">Link GitHub Account</a>
-                `;
+                    <a href="{{ url_for('link_github') }}" class="px-4 py-2 bg-gray-800 text-white rounded-lg hover:bg-gray-900 font-bold inline-block">Link GitHub Account</a>`;
             }
             
             // This logic for the password forms remains the same
