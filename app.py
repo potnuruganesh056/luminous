@@ -1534,10 +1534,12 @@ def oauth_result():
     message = request.args.get('message', 'Login successful! Welcome to Luminous Home System.')
     return render_template('oauth_result.html', status=status, message=message)
 
+# In app.py
+
 @app.route('/google/callback')
 def authorize_google():
     try:
-        token = google.autmehorize_access_token()
+        token = google.authorize_access_token()
         user_info = google.get('userinfo').json()
         profile = {
             'provider': 'google',
@@ -1546,12 +1548,20 @@ def authorize_google():
             'email': user_info.get('email'),
             'picture': user_info.get('picture')
         }
-        response = find_or_create_oauth_user(profile)
-        # On success, redirect to branded result page
-        return redirect(url_for('oauth_result', status='success', message='Google login successful!'))
+        # This function will log the user in or create a new account
+        find_or_create_oauth_user(profile) 
+        
+        # If successful, redirect to the main page
+        return redirect(url_for('home'))
+
     except Exception as e:
-        # On error, redirect to branded result page
-        return redirect(url_for('oauth_result', status='error', message='Google login failed. Please try again.'))
+        # MODIFICATION: Print the actual error to the logs for debugging
+        print(f"--- GOOGLE LOGIN ERROR ---")
+        print(f"An exception occurred: {e}")
+        print(f"--------------------------")
+        
+        # Then redirect to the error page so the user sees a message
+        return redirect(url_for('oauth_result', status='error', message='Google login failed. Please check the server logs.'))
 
 
 @app.route('/login/github')
