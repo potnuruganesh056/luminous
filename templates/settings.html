@@ -7,33 +7,33 @@
         <p class="text-gray-700 dark:text-gray-300">Manage your profile and application preferences.</p>
     </div>
     <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
-        <div data-slot="card" class="bg-card text-card-foreground rounded-xl border p-8 shadow-sm transition-all">
-            <h2 class="text-2xl font-bold mb-6 text-gray-800 dark:text-gray-200">Profile Information</h2>
-            <div class="flex justify-center mb-6">
-                <img id="profile-picture" src="https://via.placeholder.com/150" alt="Profile Picture" class="w-24 h-24 rounded-full object-cover border-4 border-gray-200 dark:border-gray-700">
+        <div class="space-y-8">
+
+            <div data-slot="card" class="bg-card text-card-foreground rounded-xl border p-8 shadow-sm">
+                <h2 class="text-2xl font-bold mb-6">Profile Information</h2>
+                <div class="flex justify-center mb-6">
+                    <img id="profile-picture" src="https://via.placeholder.com/150" alt="Profile Picture" class="w-24 h-24 rounded-full object-cover border-4 border-gray-200 dark:border-gray-700">
+                </div>
+                <form id="profile-settings-form" class="space-y-6">
+                    <div>
+                        <label for="profile-name" class="block text-sm font-medium">Name</label>
+                        <input type="text" id="profile-name" name="name" class="mt-1 block w-full rounded-md bg-gray-100 dark:bg-gray-700 border-gray-300">
+                    </div>
+                    <div>
+                        <label for="profile-mobile" class="block text-sm font-medium">Mobile Number</label>
+                        <input type="tel" id="profile-mobile" name="mobile" class="mt-1 block w-full rounded-md bg-gray-100 dark:bg-gray-700 border-gray-300">
+                    </div>
+                    <div class="flex justify-end">
+                        <button type="submit" class="px-4 py-2 bg-secondary-accent text-white rounded-lg hover:bg-opacity-80 font-bold">Save Profile</button>
+                    </div>
+                </form>
             </div>
-            <form id="profile-settings-form" class="space-y-6">
-                <div>
-                    <label for="profile-name" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Name</label>
-                    <input type="text" id="profile-name" name="name" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 bg-gray-100 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100">
+        
+            <div id="google-account-box" data-slot="card" class="bg-card text-card-foreground rounded-xl border p-8 shadow-sm">
                 </div>
-                <div>
-                    <label for="profile-email" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Email</label>
-                    <input type="email" id="profile-email" name="email" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm py-2 px-3 bg-gray-200 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-400 cursor-not-allowed" disabled>
-                    <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Email is managed by your login provider (Google/GitHub).</p>
+        
+            <div id="github-account-box" data-slot="card" class="bg-card text-card-foreground rounded-xl border p-8 shadow-sm">
                 </div>
-                <div id="github-profile-container" class="hidden">
-                    <label for="profile-github" class="block text-sm font-medium text-gray-700 dark:text-gray-300">GitHub Profile</label>
-                    <input type="text" id="profile-github" name="github_profile_url" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm py-2 px-3 bg-gray-200 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-400 cursor-not-allowed" disabled>
-                </div>
-                <div>
-                    <label for="profile-mobile" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Mobile Number</label>
-                    <input type="tel" id="profile-mobile" name="mobile" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 bg-gray-100 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100">
-                </div>
-                <div class="flex justify-end">
-                    <button type="submit" class="px-4 py-2 bg-secondary-accent text-white rounded-lg hover:bg-opacity-80 transition-colors font-bold">Save Profile</button>
-                </div>
-            </form>
         </div>
         <div data-slot="card" class="bg-card text-card-foreground rounded-xl border p-8 shadow-sm transition-all space-y-6">
             <h2 class="text-2xl font-bold mb-4 text-gray-800 dark:text-gray-200">Security & Preferences</h2>
@@ -90,24 +90,61 @@
     const fetchUserSettings = async () => {
         try {
             const response = await fetch('/api/get-user-settings');
-            if (!response.ok) throw new Error('Failed to fetch user settings.');
+            if (!response.ok) throw new Error('Failed to fetch settings.');
             const settings = await response.json();
+            
+            // --- Populate the separate boxes ---
+    
+            // 1. Populate Profile Info Card
             document.getElementById('profile-picture').src = settings.picture || 'https://via.placeholder.com/150';
             document.getElementById('profile-name').value = settings.name || '';
             document.getElementById('profile-mobile').value = settings.mobile || '';
             document.getElementById('ai-control-interval').value = settings.ai_control_interval || 5;
-            const emailInput = document.getElementById('profile-email');
-            const githubInput = document.getElementById('profile-github');
+    
+    
+            // 2. Populate Google Account Card
+            const googleBox = document.getElementById('google-account-box');
             if (settings.google_id) {
-                emailInput.value = settings.email;
+                googleBox.innerHTML = `
+                    <h2 class="text-2xl font-bold mb-4">Google Account</h2>
+                    <div class="flex items-center space-x-4">
+                        <img src="${settings.google_picture || 'https://via.placeholder.com/150'}" alt="Google Avatar" class="w-16 h-16 rounded-full">
+                        <div>
+                            <p class="font-semibold text-lg">${settings.name}</p>
+                            <p class="text-sm text-gray-500">${settings.email}</p>
+                        </div>
+                    </div>
+                `;
             } else {
-                emailInput.value = 'N/A - Link your Google account to see email';
+                googleBox.innerHTML = `
+                    <h2 class="text-2xl font-bold mb-4">Google Account</h2>
+                    <p class="text-gray-500 mb-4">Your account is not linked to Google.</p>
+                    <a href="{{ url_for('link_google') }}" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-bold inline-block">Link Google Account</a>
+                `;
             }
+    
+            // 3. Populate GitHub Account Card
+            const githubBox = document.getElementById('github-account-box');
             if (settings.github_id) {
-                githubInput.value = settings.github_profile_url || 'Profile URL not available';
+                githubBox.innerHTML = `
+                    <h2 class="text-2xl font-bold mb-4">GitHub Account</h2>
+                    <div class="flex items-center space-x-4">
+                        <img src="${settings.github_picture || 'https://via.placeholder.com/150'}" alt="GitHub Avatar" class="w-16 h-16 rounded-full">
+                        <div>
+                            <p class="font-semibold text-lg">${settings.name}</p>
+                            <a href="${settings.github_profile_url || '#'}" target="_blank" class="text-sm text-blue-500 hover:underline">${settings.github_profile_url || 'Profile URL not found'}</a>
+                        </div>
+                    </div>
+                `;
             } else {
-                githubInput.value = 'N/A - Link your GitHub account to see profile';
+                githubBox.innerHTML = `
+                    <h2 class="text-2xl font-bold mb-4">GitHub Account</h2>
+                    <p class="text-gray-500 mb-4">Your account is not linked to GitHub.</p>
+                    <a href="{{ url_for('link_github') }}" class="px-4 py-2 bg-gray-800 text-white rounded-lg hover:bg-gray-900 font-bold inline-block">Link GitHub Account</a>
+                `;
             }
+            
+            // This logic for the password forms remains the same
             if (settings.has_password) {
                 document.getElementById('change-password-container').classList.remove('hidden');
                 document.getElementById('set-password-container').classList.add('hidden');
@@ -115,6 +152,7 @@
                 document.getElementById('change-password-container').classList.add('hidden');
                 document.getElementById('set-password-container').classList.remove('hidden');
             }
+    
         } catch (error) {
             console.error('Error loading settings:', error);
             showNotification('Failed to load settings.', 'off');
