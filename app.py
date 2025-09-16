@@ -1593,10 +1593,6 @@ def authorize_github():
     except Exception as e:
         return redirect(url_for('oauth_result', status='error', message='GitHub login failed. Please try again.'))
 
-
-# In app.py
-from flask import Flask, ..., flash # <-- Make sure flash is imported at the top
-
 @app.route('/link/google')
 @login_required
 def link_google():
