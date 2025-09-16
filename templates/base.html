@@ -60,7 +60,7 @@
             
             <div class="p-6 border-t border-gray-300 dark:border-gray-700">
                 <div class="flex items-center space-x-3 text-gray-700 dark:text-gray-300 mb-4">
-                    <img id="user-picture" src="https://via.placeholder.com/150" alt="Profile Picture" class="w-10 h-10 rounded-full object-cover">
+                    <img id="user-picture" alt="Profile Picture" class="w-10 h-10 rounded-full object-cover">
                     <span id="user-name" class="font-semibold">Guest</span>
                 </div>
                 <button onclick="performLogout()" class="nav-link w-full text-center bg-gray-600 hover:bg-gray-700 dark:bg-gray-700 dark:hover:bg-gray-600 text-white font-bold">
@@ -170,25 +170,44 @@
 
         // MODIFICATION: Renamed function and added logic to update the profile picture
         const fetchUserProfile = async () => {
-            try {
-                const response = await fetch('/api/get-user-settings');
-                if (!response.ok) return; // Fail silently if not logged in
-                const data = await response.json();
-                
-                if (data.name) {
-                    document.getElementById('user-name').textContent = data.name;
-                }
-                if (data.picture) {
-                    document.getElementById('user-picture').src = data.picture;
-                } else {
-                    // Fallback to a default icon if no picture is available
-                    document.getElementById('user-picture').src = "https://static.vecteezy.com/system/resources/thumbnails/009/292/244/small/default-avatar-icon-of-social-media-user-vector.jpg";
-                }
-            } catch (error) {
-                console.error("Failed to fetch user profile:", error);
-            }
+             try {
+                 const response = await fetch('/api/get-user-settings');
+                 if (!response.ok) throw new Error('User not logged in or API failed');
+                 const settings = await response.json();
+         
+                 const userPictureElement = document.getElementById('user-picture');
+                 const userNameElement = document.getElementById('user-name');
+         
+                 // Update username
+                 if (settings.name) {
+                     userNameElement.textContent = settings.name;
+                 }
+         
+                 // --- MODIFICATION: Profile Picture Priority Logic ---
+         
+                 // A funny, generic placeholder avatar (SVG data URI)
+                 const defaultFunnyImage = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='20' fill='%236366F1'/%3E%3Cpath d='M30 40 Q35 30, 40 40 T50 40' fill='none' stroke='white' stroke-width='4' stroke-linecap='round'/%3E%3Cpath d='M70 40 Q65 50, 60 40 T50 40' fill='none' stroke='white' stroke-width='4' stroke-linecap='round'/%3E%3Ccircle cx='35' cy='40' r='5' fill='white'/%3E%3Ccircle cx='65' cy='40' r='5' fill='white'/%3E%3Cpath d='M35 65 Q50 75, 65 65' fill='none' stroke='white' stroke-width='4' stroke-linecap='round'/%3E%3C/svg%3E";
+         
+                 // Priority 1: Use Google picture if available
+                 if (settings.google_picture) {
+                     userPictureElement.src = settings.google_picture;
+                 } 
+                 // Priority 2: Fallback to GitHub picture if available
+                 else if (settings.github_picture) {
+                     userPictureElement.src = settings.github_picture;
+                 } 
+                 // Priority 3: Use the funny default image
+                 else {
+                     userPictureElement.src = defaultFunnyImage;
+                 }
+         
+             } catch (error) {
+                 console.error("Failed to fetch user profile:", error);
+                 // Also set the default image on error
+                 document.getElementById('user-picture').src = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='20' fill='%236366F1'/%3E%3Cpath d='M30 40 Q35 30, 40 40 T50 40' fill='none' stroke='white' stroke-width='4' stroke-linecap='round'/%3E%3Cpath d='M70 40 Q65 50, 60 40 T50 40' fill='none' stroke='white' stroke-width='4' stroke-linecap='round'/%3E%3Ccircle cx='35' cy='40' r='5' fill='white'/%3E%3Ccircle cx='65' cy='40' r='5' fill='white'/%3E%3Cpath d='M35 65 Q50 75, 65 65' fill='none' stroke='white' stroke-width='4' stroke-linecap='round'/%3E%3C/svg%3E";
+                 document.getElementById('user-name').textContent = 'User';
+             }
         };
-
         const hideLoadingScreen = () => {
             const loadingScreen = document.getElementById('loading-screen');
             if (loadingScreen) {
