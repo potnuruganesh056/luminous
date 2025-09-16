@@ -50,8 +50,6 @@ MQTT_TOPIC_STATUS = "lumino_us/status"
 
 mqtt_client = None
 
-app.secret_key = os.urandom(24)
-
 # OAuth Configuration
 oauth = OAuth(app)
 
@@ -250,23 +248,7 @@ def save_user_data(user_data):
     data[current_user.id] = user_data
     save_data(data)
 
-# --- Analytics Data ---
-def generate_analytics_data():
-    if os.path.exists(ANALYTICS_FILE):
-        return
-    start_date = datetime.now() - timedelta(days=365)
-    with open(ANALYTICS_FILE, 'w', newline='') as csvfile:
-        fieldnames = ['date', 'hour', 'consumption']
-        writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
-        writer.writeheader()
-        for i in range(365 * 24):
-            current_datetime = start_date + timedelta(hours=i)
-            consumption = 50 + (i % 24) * 2 + (i % 7) * 5 + os.urandom(1)[0] % 10
-            writer.writerow({
-                'date': current_datetime.strftime('%Y-%m-%d'),
-                'hour': current_datetime.hour,
-                'consumption': round(consumption, 2)
-            })
+# -- Analytics Data --
 def generate_analytics_data():
     """Your existing function with minor improvements"""
     if os.path.exists(ANALYTICS_FILE):
@@ -587,88 +569,38 @@ def signup():
     if current_user.is_authenticated:
         return redirect(url_for('home'))
     
-    users = load_users()
-    if not users:
-        # Create a new default user if the users file is empty
-        new_user_id = "1"
-        default_user = {
-            'id': new_user_id,
-            'username': 'hi',
-            'password_hash': generate_password_hash('hello')
-        }
-        users.append(default_user)
-        save_users(users)
-        
-        # Create a new entry for the user in data.json
-        # data = load_data()
-        # data[new_user_id] = {
-        #     "user_settings": {
-        #         "name": "hi",
-        #         "email": "", "mobile": "", "channel": "email", "theme": "light", "ai_control_interval": 5
-        #     },
-        #     "rooms": [{
-        #         "id": "1",
-        #         "name": "Hall",
-        #         "ai_control": False,
-        #         "appliances": [
-        #             {"id": "1", "name": "Main Light", "state": False, "locked": False, "timer": None, "relay_number": 1},
-        #             {"id": "2", "name": "Fan", "state": False, "locked": False, "timer": None, "relay_number": 2},
-        #             {"id": "3", "name": "Night Lamp", "state": False, "locked": False, "timer": None, "relay_number": 3},
-        #             {"id": "4", "name": "A/C", "state": False, "locked": False, "timer": None, "relay_number": 4}
-        #         ]
-        #     }]
-        # }
-        # save_data(data)
-
-        data = load_data()
-        # Standard signup form doesn't have email, so we pass an empty string
-        data[new_user_id] = create_default_user_data(name=username, email="")
-        save_data(data)
-        
-        user_obj = User(default_user['id'], default_user['username'], default_user['password_hash'])
-        login_user(user_obj)
-        return redirect(url_for('home'))
-
     if request.method == 'POST':
+        users = load_users()
         username = request.form['username']
         password = request.form['password']
+
+        # Check if username already exists
         if any(u['username'] == username for u in users):
             return render_template('signup.html', error='Username already exists.')
         
-        new_user_id = str(len(users) + 1)
+        # Create the new user for users.json
+        new_user_id = str(int(users[-1]['id']) + 1) if users else "1"
         new_user = {
             'id': new_user_id,
             'username': username,
-            'password_hash': generate_password_hash(password)
+            'password_hash': generate_password_hash(password),
+            'google_id': None, # Initialize OAuth fields as null
+            'github_id': None
         }
         users.append(new_user)
         save_users(users)
 
-        # Create a new entry for the user in data.json
+        # Create the corresponding user data in data.json using the helper function
         data = load_data()
-        data[new_user_id] = {
-            "user_settings": {
-                "name": username,
-                "email": "", "mobile": "", "channel": "email", "theme": "light", "ai_control_interval": 5
-            },
-            "rooms": [{
-                "id": "1",
-                "name": "Hall",
-                "ai_control": False,
-                "appliances": [
-                    {"id": "1", "name": "Main Light", "state": False, "locked": False, "timer": None, "relay_number": 1},
-                    {"id": "2", "name": "Fan", "state": False, "locked": False, "timer": None, "relay_number": 2},
-                    {"id": "3", "name": "Night Lamp", "state": False, "locked": False, "timer": None, "relay_number": 3},
-                    {"id": "4", "name": "A/C", "state": False, "locked": False, "timer": None, "relay_number": 4}
-                ]
-            }]
-        }
+        data[new_user_id] = create_default_user_data(name=username, email="") # Standard signup has no email
         save_data(data)
 
         # Log the new user in and redirect to home
         user_obj = User(new_user['id'], new_user['username'], new_user['password_hash'])
         login_user(user_obj)
         return redirect(url_for('home'))
+
+    # For a GET request, just show the signup page
     return render_template('signup.html')
 
 @app.route('/logout')
