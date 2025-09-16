@@ -164,10 +164,11 @@ def load_data():
 # In app.py
 
 # In app.py
-# In app.py
+
 def find_or_create_oauth_user(profile):
     """
     Finds a user by email to link accounts, or creates a new user.
+    This is the single source of truth for all OAuth logins.
     """
     all_data = load_data()
     users = load_users()
@@ -175,60 +176,63 @@ def find_or_create_oauth_user(profile):
     # 1. Find existing user by email to link accounts
     existing_user_id = None
     for user_id, user_data in all_data.items():
-        if user_data.get("user_settings", {}).get("email") == profile['email']:
+        # Ensure email exists before comparing
+        user_email = user_data.get("user_settings", {}).get("email")
+        if user_email and user_email == profile['email']:
             existing_user_id = user_id
             break
 
+    # --- If User Exists, Link and Log In ---
     if existing_user_id:
-        # User found! Link the new provider to this existing account.
         user_record = next((u for u in users if u['id'] == existing_user_id), None)
         if not user_record:
-            # Change this line
-            # return "Error: Data inconsistency found.", 500
-            
-            # TO THIS LINE:
-            return redirect(url_for('error_page')) # You will need to create an error_page route
-        
-        # Add the provider's ID to the user's record
-        if profile['provider'] == 'google':
+            # This indicates a data mismatch between users.json and data.json
+            return redirect(url_for('error_page'))
+
+        # Update the user's record with the new provider ID if it's not already there
+        if profile['provider'] == 'google' and not user_record.get('google_id'):
             user_record['google_id'] = profile['provider_id']
-        elif profile['provider'] == 'github':
+        elif profile['provider'] == 'github' and not user_record.get('github_id'):
             user_record['github_id'] = profile['provider_id']
+        save_users(users)
         
-        save_users(users) # Save the updated user record
+        # Also update their data file with the latest picture/profile URL from the provider
+        user_data = all_data[existing_user_id]
+        user_data["user_settings"]["name"] = profile['name']
+        if profile['provider'] == 'google':
+            user_data["user_settings"]["google_picture"] = profile['picture']
+        elif profile['provider'] == 'github':
+            user_data["user_settings"]["github_picture"] = profile['picture']
+            user_data["user_settings"]["github_profile_url"] = profile['profile_url']
+        save_data(all_data)
         
-        # Log the user in
-        user_obj = User(user_record['id'], user_record['username'], user_record['password_hash'])
+        user_obj = User(user_record['id'], user_record['username'], user_record.get('password_hash'))
         login_user(user_obj)
         return redirect(url_for('home'))
 
-    # 2. If no user with that email exists, create a new account
+    # --- If No User Exists, Create New Account ---
     new_user_id = str(int(users[-1]['id']) + 1) if users else "1"
-    
-    # Create new entry in users.json
     new_user = {
-        'id': new_user_id,
-        'username': profile['name'],
-        'password_hash': None,
+        'id': new_user_id, 'username': profile['name'], 'password_hash': None,
         'google_id': profile['provider_id'] if profile['provider'] == 'google' else None,
         'github_id': profile['provider_id'] if profile['provider'] == 'github' else None,
     }
     users.append(new_user)
     save_users(users)
     
-    # Create new entry in data.json using your helper function
-    all_data[new_user_id] = create_default_user_data(
-        name=profile['name'],
-        email=profile['email'],
-        picture=profile['picture']
-    )
+    # Create new data entry using the helper function and add provider-specific URLs
+    user_data = create_default_user_data(name=profile['name'], email=profile['email'])
+    if profile['provider'] == 'google':
+        user_data["user_settings"]["google_picture"] = profile['picture']
+    elif profile['provider'] == 'github':
+        user_data["user_settings"]["github_picture"] = profile['picture']
+        user_data["user_settings"]["github_profile_url"] = profile['profile_url']
+    all_data[new_user_id] = user_data
     save_data(all_data)
     
-    # Log the new user in
     user_obj = User(new_user['id'], new_user['username'], new_user['password_hash'])
     login_user(user_obj)
     return redirect(url_for('home'))
-
 def save_data(data):
     with open(DATA_FILE, 'w') as f:
         json.dump(data, f, indent=4)
