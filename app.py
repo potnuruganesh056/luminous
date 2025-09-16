@@ -172,21 +172,6 @@ def save_all_data_to_db(data_dict):
     redis_client.set('data', json.dumps(data_dict))
 
 
-# --- User Management ---
-class User(UserMixin):
-    def __init__(self, id, username, password):
-        self.id = id
-        self.username = username
-        self.password_hash = password
-
-@login_manager.user_loader
-def load_user(user_id):
-    users = load_users()
-    for user in users:
-        if user['id'] == user_id:
-            return User(user['id'], user['username'], user['password_hash'])
-    return None
-
 # In app.py, add this new function
 
 def _create_new_user_entry(profile):
