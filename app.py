@@ -12,6 +12,7 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from flask_mail import Mail, Message
 import requests
 import base64
+import redis
 
 
 # --- Application Setup ---
@@ -31,9 +32,14 @@ app.config['MAIL_PASSWORD'] = os.environ.get('MAIL_PASSWORD')
 app.config['MAIL_DEFAULT_SENDER'] = os.environ.get('MAIL_DEFAULT_SENDER', app.config['MAIL_USERNAME'])
 mail = Mail(app)
 
+redis_url = os.getenv('REDIS_URL')
+if not redis_url:
+    raise RuntimeError("REDIS_URL environment variable not set.")
+redis_client = redis.from_url(redis_url)
+
 # --- Data File Paths ---
-USERS_FILE = 'users.json'
-DATA_FILE = 'data.json'
+# USERS_FILE = 'users.json'
+# DATA_FILE = 'data.json'
 ANALYTICS_FILE = 'analytics_data.csv'
 
 ELECTRICITY_RATE = 6.50
