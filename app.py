@@ -123,11 +123,6 @@ def get_user_by_email(email):
             return next((u for u in all_users if u.get('id') == user_id), None)
     return None
 
-def get_user_data():
-    """Gets the application data (settings, rooms) for the currently logged-in user."""
-    all_data = get_all_data_from_db()
-    return all_data.get(current_user.id, {})
-
 def connect_mqtt():
     """Connects to the MQTT broker."""
     global mqtt_client
@@ -252,6 +247,52 @@ def create_default_user_data(name, email, picture=None):
         }]
     }
 
+
+# In app.py
+# In app.py
+
+def load_data():
+    """MODIFIED: Loads the main application data object from the Redis database."""
+    data_json = redis_client.get('data')
+    return json.loads(data_json) if data_json else {}
+
+def save_data(data):
+    """MODIFIED: Saves the main application data object to the Redis database."""
+    redis_client.set('data', json.dumps(data))
+
+def load_users():
+    """MODIFIED: Loads the list of users from the Redis database."""
+    users_json = redis_client.get('users')
+    return json.loads(users_json) if users_json else []
+
+def save_users(users):
+    """MODIFIED: Saves the list of users to the Redis database."""
+    redis_client.set('users', json.dumps(users))
+
+# In app.py
+
+def get_user_data():
+    """
+    Gets the application data (settings, rooms) for the currently logged-in user.
+    This function now correctly calls the Redis-powered load_data().
+    """
+    data = load_data() # This now reads from Redis
+    return data.get(current_user.id, {
+        "user_settings": {
+            "name": current_user.username,
+            "email": "", "mobile": "", "channel": "email", "theme": "light", "ai_control_interval": 5
+        },
+        "rooms": []
+    })
+
+def save_user_data(user_data):
+    """
+    Saves the application data for the currently logged-in user.
+    This function now correctly calls the Redis-powered load_data() and save_data().
+    """
+    data = load_data() # This now reads from Redis
+    data[current_user.id] = user_data
+    save_data(data) # This now writes to Redis
 
 # -- Analytics Data --
 # def generate_analytics_data():
@@ -560,13 +601,20 @@ def signin():
     if request.method == 'POST':
         username = request.form['username']
         password = request.form['password']
-        users = load_users()
-        for user in users:
-            if user['username'] == username and check_password_hash(user['password_hash'], password):
-                user_obj = User(user['id'], user['username'], user['password_hash'])
-                login_user(user_obj)
-                return redirect(url_for('home'))
-        return render_template('signin.html', error='Invalid username or password.')
+        
+        # MODIFICATION: Use the new Redis helper function
+        all_users = get_all_users_from_db()
+        user_data = next((u for u in all_users if u['username'] == username), None)
+
+        # Check for user, password hash, and then check the password
+        if user_data and user_data.get('password_hash') and check_password_hash(user_data['password_hash'], password):
+            user_obj = User(user_data['id'], user_data['username'], user_data['password_hash'])
+            login_user(user_obj)
+            return redirect(url_for('home'))
+            
+        flash('Invalid username or password.', 'error')
+        return redirect(url_for('signin'))
+        
     return render_template('signin.html')
 
 @app.route('/signup', methods=['GET', 'POST'])
@@ -1290,16 +1338,25 @@ def get_predictions():
         return jsonify({'error': f'Failed to generate predictions: {str(e)}'}), 500
 
 # In app.py
+# In app.py
+
 @app.route('/api/get-user-settings', methods=['GET'])
 @login_required
 def get_user_settings():
+    """
+    Fetches all settings for the current user from the Redis database.
+    """
     try:
-        user_data = get_user_data()
+        # 1. Get the user's application data (settings, rooms, etc.) from the 'data' key in Redis
+        all_data = get_all_data_from_db()
+        user_data = all_data.get(current_user.id, {})
         settings = user_data.get('user_settings', {})
 
-        users = load_users()
-        user_record = next((u for u in users if u['id'] == current_user.id), None)
+        # 2. Get the user's authentication record (for google_id, etc.) from the 'users' key in Redis
+        all_users = get_all_users_from_db()
+        user_record = next((u for u in all_users if u.get('id') == current_user.id), None)
 
+        # 3. Merge the information into one object for the frontend
         if user_record:
             settings['google_id'] = user_record.get('google_id')
             settings['github_id'] = user_record.get('github_id')
@@ -1307,7 +1364,8 @@ def get_user_settings():
         
         return jsonify(settings), 200
     except Exception as e:
-        return jsonify({"status": "error", "message": str(e)}), 500
+        print(f"Error in /api/get-user-settings: {e}")
+        return jsonify({"status": "error", "message": "Could not load user settings."}), 500
         
 @app.route('/api/set-user-settings', methods=['POST'])
 @login_required
@@ -1326,32 +1384,30 @@ def set_user_settings():
 def change_password():
     try:
         data_from_request = request.json
-        old_password = data_from_request['old_password']
         new_password = data_from_request['new_password']
         
-        users = load_users()
-        user_found = next((user for user in users if user['id'] == current_user.id), None)
+        # MODIFICATION: Use the new Redis helper functions
+        all_users = get_all_users_from_db()
+        user_found = next((user for user in all_users if user['id'] == current_user.id), None)
         
         if not user_found:
             return jsonify({"status": "error", "message": "User not found."}), 404
-        
-        # Check if user has no existing password (OAuth user setting password for first time)
+
+        # Logic for setting a password for the first time (for OAuth users)
         if not user_found.get('password_hash'):
-            # No existing password, so set the new password directly
             user_found['password_hash'] = generate_password_hash(new_password)
-            save_users(users)
+            save_all_users_to_db(all_users)
             return jsonify({"status": "success", "message": "Password set successfully."}), 200
-        
-        # User has existing password, verify old password before updating
-        if check_password_hash(user_found['password_hash'], old_password):
-            user_found['password_hash'] = generate_password_hash(new_password)
-            save_users(users)
-            return jsonify({"status": "success", "message": "Password updated successfully."}), 200
-        else:
+
+        # Logic for changing an existing password
+        old_password = data_from_request.get('old_password')
+        if not old_password or not check_password_hash(user_found['password_hash'], old_password):
             return jsonify({"status": "error", "message": "Invalid old password."}), 400
             
-    except KeyError as e:
-        return jsonify({"status": "error", "message": f"Missing required field: {str(e)}"}), 400
+        user_found['password_hash'] = generate_password_hash(new_password)
+        save_all_users_to_db(all_users)
+        return jsonify({"status": "success", "message": "Password updated successfully."}), 200
+            
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
 
@@ -1586,28 +1642,29 @@ def authorize_github():
 @app.route('/link/google')
 @login_required
 def link_google():
-    # MODIFICATION: Check if user is already linked
-    users = load_users()
-    user_record = next((u for u in users if u['id'] == current_user.id), None)
+    # MODIFICATION: Use the new Redis helper function
+    all_users = get_all_users_from_db()
+    user_record = next((u for u in all_users if u['id'] == current_user.id), None)
+    
     if user_record and user_record.get('google_id'):
         flash("Your account is already linked to Google.", "info")
         return redirect(url_for('settings'))
     
-    # If not linked, proceed to Google
     redirect_uri = url_for('link_authorize_google', _external=True)
     return google.authorize_redirect(redirect_uri)
 
 @app.route('/link/github')
 @login_required
 def link_github():
-    # MODIFICATION: Check if user is already linked
-    users = load_users()
-    user_record = next((u for u in users if u['id'] == current_user.id), None)
+    # MODIFICATION: Use the new Redis helper function
+    all_users = get_all_users_from_db()
+    user_record = next((u for u in all_users if u['id'] == current_user.id), None)
+
     if user_record and user_record.get('github_id'):
         flash("Your account is already linked to GitHub.", "info")
         return redirect(url_for('settings'))
         
-    # If not linked, proceed to GitHub
+    # Assumes you have a github_link client for this, as discussed
     redirect_uri = url_for('link_authorize_github', _external=True)
     return github_link.authorize_redirect(redirect_uri)
 
