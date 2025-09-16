@@ -1621,53 +1621,86 @@ def link_github():
     redirect_uri = url_for('link_authorize_github', _external=True)
     return github_link.authorize_redirect(redirect_uri)
 
+# In app.py
+
 @app.route('/link/google/callback')
 @login_required
 def link_authorize_google():
-    """Handles the callback after the user authorizes Google linking."""
     try:
         token = google.authorize_access_token()
         user_info = google.get('userinfo').json()
 
-        # Update the currently logged-in user's records
-        users = load_users()
-        user_record = next((u for u in users if u['id'] == current_user.id), None)
-        if user_record:
-            user_record['google_id'] = user_info.get('sub')
-            save_users(users)
+        # --- MODIFIED: More Robust Read-Modify-Write Logic ---
 
-        user_data = get_user_data()
-        user_data['user_settings']['google_picture'] = user_info.get('picture')
-        # If the user didn't have a primary email, set it now
-        if not user_data['user_settings'].get('email'):
-            user_data['user_settings']['email'] = user_info.get('email')
-        save_user_data(user_data)
+        # 1. Load both full datasets
+        all_users = load_users()
+        all_data = load_data()
+
+        # 2. Find the records for the currently logged-in user
+        user_record = next((u for u in all_users if u['id'] == current_user.id), None)
+        user_profile_data = all_data.get(current_user.id)
         
+        if not user_record or not user_profile_data:
+            flash("A data inconsistency was detected. Please contact support.", "error")
+            return redirect(url_for('settings'))
+
+        # 3. Modify the data directly
+        user_record['google_id'] = user_info.get('sub')
+        user_profile_data['user_settings']['google_picture'] = user_info.get('picture')
+        # If the user didn't have a primary email, set it from their verified Google account
+        if not user_profile_data['user_settings'].get('email'):
+            user_profile_data['user_settings']['email'] = user_info.get('email')
+
+        # 4. Save both full datasets
+        save_users(all_users)
+        save_data(all_data)
+
+        flash("Your Google account has been successfully linked.", "success")
         return redirect(url_for('settings'))
+        
     except Exception as e:
         print(f"Error linking Google account: {e}")
-        return redirect(url_for('settings')) # Redirect back to settings on failure
+        flash("An error occurred while linking your Google account. Please try again.", "error")
+        return redirect(url_for('settings'))
 
+# In app.py
+
+@app.route('/link/github/callback')
+@login_required
 def link_authorize_github():
-    """Handles the callback after the user authorizes GitHub linking."""
     try:
         token = github.authorize_access_token()
         user_info = github.get('user').json()
+        
+        # --- MODIFIED: More Robust Read-Modify-Write Logic ---
 
-        users = load_users()
-        user_record = next((u for u in users if u['id'] == current_user.id), None)
-        if user_record:
-            user_record['github_id'] = user_info.get('id')
-            save_users(users)
-            
-        user_data = get_user_data()
-        user_data['user_settings']['github_picture'] = user_info.get('avatar_url')
-        user_data['user_settings']['github_profile_url'] = user_info.get('html_url')
-        save_user_data(user_data)
+        # 1. Load both full datasets
+        all_users = load_users()
+        all_data = load_data()
 
+        # 2. Find the records for the currently logged-in user
+        user_record = next((u for u in all_users if u['id'] == current_user.id), None)
+        user_profile_data = all_data.get(current_user.id)
+
+        if not user_record or not user_profile_data:
+            flash("A data inconsistency was detected. Please contact support.", "error")
+            return redirect(url_for('settings'))
+
+        # 3. Modify the data directly
+        user_record['github_id'] = user_info.get('id')
+        user_profile_data['user_settings']['github_picture'] = user_info.get('avatar_url')
+        user_profile_data['user_settings']['github_profile_url'] = user_info.get('html_url')
+        
+        # 4. Save both full datasets
+        save_users(all_users)
+        save_data(all_data)
+        
+        flash("Your GitHub account has been successfully linked.", "success")
         return redirect(url_for('settings'))
+
     except Exception as e:
         print(f"Error linking GitHub account: {e}")
+        flash("An error occurred while linking your GitHub account. Please try again.", "error")
         return redirect(url_for('settings'))
 
 # In app.py
