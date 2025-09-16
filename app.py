@@ -187,17 +187,6 @@ def load_user(user_id):
             return User(user['id'], user['username'], user['password_hash'])
     return None
 
-def load_users():
-    if not os.path.exists(USERS_FILE):
-        with open(USERS_FILE, 'w') as f:
-            json.dump([], f)
-    with open(USERS_FILE, 'r') as f:
-        return json.load(f)
-
-def save_users(users):
-    with open(USERS_FILE, 'w') as f:
-        json.dump(users, f, indent=4)
-
 # In app.py, add this new function
 
 def _create_new_user_entry(profile):
@@ -278,60 +267,34 @@ def create_default_user_data(name, email, picture=None):
         }]
     }
 
-# --- Data Persistence Functions ---
-def load_data():
-    if not os.path.exists(DATA_FILE):
-        with open(DATA_FILE, 'w') as f:
-            json.dump({}, f)
-    with open(DATA_FILE, 'r') as f:
-        return json.load(f)
-
-def save_data(data):
-    with open(DATA_FILE, 'w') as f:
-        json.dump(data, f, indent=4)
-
-def get_user_data():
-    data = load_data()
-    return data.get(current_user.id, {
-        "user_settings": {
-            "name": current_user.username,
-            "email": "", "mobile": "", "channel": "email", "theme": "light", "ai_control_interval": 5
-        },
-        "rooms": []
-    })
-
-def save_user_data(user_data):
-    data = load_data()
-    data[current_user.id] = user_data
-    save_data(data)
 
 # -- Analytics Data --
-def generate_analytics_data():
-    """Your existing function with minor improvements"""
-    if os.path.exists(ANALYTICS_FILE):
-        return
-    start_date = datetime.now() - timedelta(days=365)
-    with open(ANALYTICS_FILE, 'w', newline='') as csvfile:
-        fieldnames = ['date', 'hour', 'consumption']
-        writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
-        writer.writeheader()
-        for i in range(365 * 24):
-            current_datetime = start_date + timedelta(hours=i)
-            # More realistic consumption pattern
-            base_consumption = 50
-            hour_factor = (i % 24) * 2  # Higher usage during day
-            day_factor = (i % 7) * 5    # Higher usage on weekends
-            seasonal_factor = 10 * (1 + 0.3 * (i // (24*30)) % 12 / 12)  # Seasonal variation
-            random_factor = os.urandom(1)[0] % 20 - 10  # Random variation
+# def generate_analytics_data():
+#     """Your existing function with minor improvements"""
+#     if os.path.exists(ANALYTICS_FILE):
+#         return
+#     start_date = datetime.now() - timedelta(days=365)
+#     with open(ANALYTICS_FILE, 'w', newline='') as csvfile:
+#         fieldnames = ['date', 'hour', 'consumption']
+#         writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+#         writer.writeheader()
+#         for i in range(365 * 24):
+#             current_datetime = start_date + timedelta(hours=i)
+#             # More realistic consumption pattern
+#             base_consumption = 50
+#             hour_factor = (i % 24) * 2  # Higher usage during day
+#             day_factor = (i % 7) * 5    # Higher usage on weekends
+#             seasonal_factor = 10 * (1 + 0.3 * (i // (24*30)) % 12 / 12)  # Seasonal variation
+#             random_factor = os.urandom(1)[0] % 20 - 10  # Random variation
             
-            consumption = base_consumption + hour_factor + day_factor + seasonal_factor + random_factor
-            consumption = max(20, consumption)  # Minimum consumption
+#             consumption = base_consumption + hour_factor + day_factor + seasonal_factor + random_factor
+#             consumption = max(20, consumption)  # Minimum consumption
             
-            writer.writerow({
-                'date': current_datetime.strftime('%Y-%m-%d'),
-                'hour': current_datetime.hour,
-                'consumption': round(consumption, 2)
-            })
+#             writer.writerow({
+#                 'date': current_datetime.strftime('%Y-%m-%d'),
+#                 'hour': current_datetime.hour,
+#                 'consumption': round(consumption, 2)
+#             })
 
 def load_analytics_data():
     """Your existing function"""
