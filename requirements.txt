@@ -7,3 +7,5 @@ requests
 flask_mail
 Authlib
 redis
+Flask-SQLAlchemy
+psycopg2-binary
