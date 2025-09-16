@@ -32,10 +32,17 @@ app.config['MAIL_PASSWORD'] = os.environ.get('MAIL_PASSWORD')
 app.config['MAIL_DEFAULT_SENDER'] = os.environ.get('MAIL_DEFAULT_SENDER', app.config['MAIL_USERNAME'])
 mail = Mail(app)
 
-redis_url = os.getenv('REDIS_URL')
-if not redis_url:
-    raise RuntimeError("REDIS_URL environment variable not set.")
-redis_client = redis.from_url(redis_url)
+# --- Redis Database Connection ---
+try:
+    redis_url = os.getenv('REDIS_URL')
+    if not redis_url:
+        raise RuntimeError("FATAL: REDIS_URL environment variable not set.")
+    redis_client = redis.from_url(redis_url, decode_responses=True) # decode_responses=True is important
+    redis_client.ping()
+    print("Successfully connected to Redis database.")
+except Exception as e:
+    print(f"FATAL: Could not connect to Redis. Error: {e}")
+
 
 # --- Data File Paths ---
 # USERS_FILE = 'users.json'
@@ -86,6 +93,41 @@ github = oauth.register(
     client_kwargs={'scope': 'user:email'}
 )
 
+
+# --- DATABASE HELPER FUNCTIONS (High-Level) ---
+
+class User(UserMixin):
+    # This class remains the same
+    def __init__(self, id, username, password):
+        self.id = id
+        self.username = username
+        self.password_hash = password
+
+@login_manager.user_loader
+def load_user(user_id):
+    """Loads a user for Flask-Login by their ID."""
+    all_users = get_all_users_from_db()
+    user_data = next((u for u in all_users if u.get('id') == user_id), None)
+    if user_data:
+        return User(user_data['id'], user_data['username'], user_data.get('password_hash'))
+    return None
+
+def get_user_by_email(email):
+    """Finds a user's auth record ('users' key) by their email address (from 'data' key)."""
+    if not email:
+        return None
+    all_data = get_all_data_from_db()
+    all_users = get_all_users_from_db()
+    for user_id, user_data in all_data.items():
+        if user_data.get("user_settings", {}).get("email") == email:
+            return next((u for u in all_users if u.get('id') == user_id), None)
+    return None
+
+def get_user_data():
+    """Gets the application data (settings, rooms) for the currently logged-in user."""
+    all_data = get_all_data_from_db()
+    return all_data.get(current_user.id, {})
+
 def connect_mqtt():
     """Connects to the MQTT broker."""
     global mqtt_client
@@ -107,6 +149,27 @@ def run_mqtt_thread():
     mqtt_thread = threading.Thread(target=connect_mqtt)
     mqtt_thread.daemon = True
     mqtt_thread.start()
+
+
+# --- DATABASE HELPER FUNCTIONS (Low-Level) ---
+
+def get_all_users_from_db():
+    """Fetches and decodes the 'users' list from Redis."""
+    users_json = redis_client.get('users')
+    return json.loads(users_json) if users_json else []
+
+def save_all_users_to_db(users_list):
+    """Encodes and saves the 'users' list to Redis."""
+    redis_client.set('users', json.dumps(users_list))
+
+def get_all_data_from_db():
+    """Fetches and decodes the 'data' dictionary from Redis."""
+    data_json = redis_client.get('data')
+    return json.loads(data_json) if data_json else {}
+
+def save_all_data_to_db(data_dict):
+    """Encodes and saves the 'data' dictionary to Redis."""
+    redis_client.set('data', json.dumps(data_dict))
 
 
 # --- User Management ---
@@ -136,6 +199,62 @@ def save_users(users):
         json.dump(users, f, indent=4)
 
 # In app.py, add this new function
+
+def _create_new_user_entry(profile):
+    """Helper to create new user records in both 'users' and 'data' stores."""
+    all_users = get_all_users_from_db()
+    all_data = get_all_data_from_db()
+
+    new_user_id = str(int(all_users[-1]['id']) + 1) if all_users else "1"
+    
+    # Create the authentication record for the 'users' key
+    new_user_record = {
+        'id': new_user_id,
+        'username': profile['name'],
+        'password_hash': profile.get('password_hash'), # Will be None for OAuth
+        'google_id': profile['provider_id'] if profile.get('provider') == 'google' else None,
+        'github_id': profile['provider_id'] if profile.get('provider') == 'github' else None,
+    }
+    all_users.append(new_user_record)
+
+    # Create the application data record for the 'data' key
+    all_data[new_user_id] = create_default_user_data(
+        name=profile['name'],
+        email=profile['email'],
+        picture=profile.get('picture')
+    )
+    
+    # Save everything back to the database
+    save_all_users_to_db(all_users)
+    save_all_data_to_db(all_data)
+
+    return new_user_record
+
+def find_or_create_oauth_user(profile):
+    """Central logic for all OAuth logins. Finds, links, or creates a user."""
+    user_record = get_user_by_email(profile['email'])
+    
+    if user_record: # User with this email already exists
+        all_users = get_all_users_from_db()
+        # Find the specific record in the list to update it
+        user_to_update = next((u for u in all_users if u['id'] == user_record['id']), None)
+        
+        if profile['provider'] == 'google':
+            user_to_update['google_id'] = profile['provider_id']
+        elif profile['provider'] == 'github':
+            user_to_update['github_id'] = profile['provider_id']
+        
+        save_all_users_to_db(all_users)
+        # We also can update their picture/name from the latest login
+        # (This logic would go here if needed)
+
+    else: # No user with this email, create a new one
+        user_record = _create_new_user_entry(profile)
+
+    # Log the user in and redirect
+    user_obj = User(user_record['id'], user_record['username'], user_record.get('password_hash'))
+    login_user(user_obj)
+    return redirect(url_for('home'))
 
 def create_default_user_data(name, email, picture=None):
     """Creates the default data structure for a new user."""
@@ -167,78 +286,6 @@ def load_data():
     with open(DATA_FILE, 'r') as f:
         return json.load(f)
 
-# In app.py
-
-# In app.py
-
-def find_or_create_oauth_user(profile):
-    """
-    Finds a user by email to link accounts, or creates a new user.
-    This is the single source of truth for all OAuth logins.
-    """
-    all_data = load_data()
-    users = load_users()
-    
-    # 1. Find existing user by email to link accounts
-    existing_user_id = None
-    for user_id, user_data in all_data.items():
-        # Ensure email exists before comparing
-        user_email = user_data.get("user_settings", {}).get("email")
-        if user_email and user_email == profile['email']:
-            existing_user_id = user_id
-            break
-
-    # --- If User Exists, Link and Log In ---
-    if existing_user_id:
-        user_record = next((u for u in users if u['id'] == existing_user_id), None)
-        if not user_record:
-            # This indicates a data mismatch between users.json and data.json
-            return redirect(url_for('error_page'))
-
-        # Update the user's record with the new provider ID if it's not already there
-        if profile['provider'] == 'google' and not user_record.get('google_id'):
-            user_record['google_id'] = profile['provider_id']
-        elif profile['provider'] == 'github' and not user_record.get('github_id'):
-            user_record['github_id'] = profile['provider_id']
-        save_users(users)
-        
-        # Also update their data file with the latest picture/profile URL from the provider
-        user_data = all_data[existing_user_id]
-        user_data["user_settings"]["name"] = profile['name']
-        if profile['provider'] == 'google':
-            user_data["user_settings"]["google_picture"] = profile['picture']
-        elif profile['provider'] == 'github':
-            user_data["user_settings"]["github_picture"] = profile['picture']
-            user_data["user_settings"]["github_profile_url"] = profile['profile_url']
-        save_data(all_data)
-        
-        user_obj = User(user_record['id'], user_record['username'], user_record.get('password_hash'))
-        login_user(user_obj)
-        return redirect(url_for('home'))
-
-    # --- If No User Exists, Create New Account ---
-    new_user_id = str(int(users[-1]['id']) + 1) if users else "1"
-    new_user = {
-        'id': new_user_id, 'username': profile['name'], 'password_hash': None,
-        'google_id': profile['provider_id'] if profile['provider'] == 'google' else None,
-        'github_id': profile['provider_id'] if profile['provider'] == 'github' else None,
-    }
-    users.append(new_user)
-    save_users(users)
-    
-    # Create new data entry using the helper function and add provider-specific URLs
-    user_data = create_default_user_data(name=profile['name'], email=profile['email'])
-    if profile['provider'] == 'google':
-        user_data["user_settings"]["google_picture"] = profile['picture']
-    elif profile['provider'] == 'github':
-        user_data["user_settings"]["github_picture"] = profile['picture']
-        user_data["user_settings"]["github_profile_url"] = profile['profile_url']
-    all_data[new_user_id] = user_data
-    save_data(all_data)
-    
-    user_obj = User(new_user['id'], new_user['username'], new_user['password_hash'])
-    login_user(user_obj)
-    return redirect(url_for('home'))
 def save_data(data):
     with open(DATA_FILE, 'w') as f:
         json.dump(data, f, indent=4)
@@ -580,38 +627,27 @@ def signup():
         return redirect(url_for('home'))
     
     if request.method == 'POST':
-        users = load_users()
         username = request.form['username']
         password = request.form['password']
-
-        # Check if username already exists
-        if any(u['username'] == username for u in users):
-            return render_template('signup.html', error='Username already exists.')
         
-        # Create the new user for users.json
-        new_user_id = str(int(users[-1]['id']) + 1) if users else "1"
-        new_user = {
-            'id': new_user_id,
-            'username': username,
-            'password_hash': generate_password_hash(password),
-            'google_id': None, # Initialize OAuth fields as null
-            'github_id': None
+        if any(u['username'] == username for u in get_all_users_from_db()):
+            flash('Username already exists.', 'error')
+            return redirect(url_for('signup'))
+        
+        # Use the centralized creation function
+        profile = {
+            "name": username,
+            "email": "", # Standard signup doesn't have an email
+            "password_hash": generate_password_hash(password)
         }
-        users.append(new_user)
-        save_users(users)
-
-        # Create the corresponding user data in data.json using the helper function
-        data = load_data()
-        data[new_user_id] = create_default_user_data(name=username, email="") # Standard signup has no email
-        save_data(data)
-
-        # Log the new user in and redirect to home
-        user_obj = User(new_user['id'], new_user['username'], new_user['password_hash'])
+        new_user_record = _create_new_user_entry(profile)
+        
+        user_obj = User(new_user_record['id'], new_user_record['username'], new_user_record['password_hash'])
         login_user(user_obj)
         return redirect(url_for('home'))
 
-    # For a GET request, just show the signup page
     return render_template('signup.html')
+
 
 @app.route('/logout')
 @login_required
