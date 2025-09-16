@@ -1303,7 +1303,6 @@ def get_user_settings():
         user_data = get_user_data()
         settings = user_data.get('user_settings', {})
 
-        # Also load the main user record to get linked account info
         users = load_users()
         user_record = next((u for u in users if u['id'] == current_user.id), None)
 
@@ -1315,7 +1314,7 @@ def get_user_settings():
         return jsonify(settings), 200
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
-
+        
 @app.route('/api/set-user-settings', methods=['POST'])
 @login_required
 def set_user_settings():
@@ -1590,6 +1589,74 @@ def authorize_github():
     except Exception as e:
         return redirect(url_for('oauth_result', status='error', message='GitHub login failed. Please try again.'))
 
+
+# In app.py, add these new routes
+
+@app.route('/link/google')
+@login_required
+def link_google():
+    """Initiates the process of linking a Google account to the current user."""
+    # Use the new, dedicated callback URL for linking
+    redirect_uri = url_for('link_authorize_google', _external=True)
+    return google.authorize_redirect(redirect_uri)
+
+@app.route('/link/google/callback')
+@login_required
+def link_authorize_google():
+    """Handles the callback after the user authorizes Google linking."""
+    try:
+        token = google.authorize_access_token()
+        user_info = google.get('userinfo').json()
+
+        # Update the currently logged-in user's records
+        users = load_users()
+        user_record = next((u for u in users if u['id'] == current_user.id), None)
+        if user_record:
+            user_record['google_id'] = user_info.get('sub')
+            save_users(users)
+
+        user_data = get_user_data()
+        user_data['user_settings']['google_picture'] = user_info.get('picture')
+        # If the user didn't have a primary email, set it now
+        if not user_data['user_settings'].get('email'):
+            user_data['user_settings']['email'] = user_info.get('email')
+        save_user_data(user_data)
+        
+        return redirect(url_for('settings'))
+    except Exception as e:
+        print(f"Error linking Google account: {e}")
+        return redirect(url_for('settings')) # Redirect back to settings on failure
+
+@app.route('/link/github')
+@login_required
+def link_github():
+    """Initiates the process of linking a GitHub account to the current user."""
+    redirect_uri = url_for('link_authorize_github', _external=True)
+    return github.authorize_redirect(redirect_uri)
+
+@app.route('/link/github/callback')
+@login_required
+def link_authorize_github():
+    """Handles the callback after the user authorizes GitHub linking."""
+    try:
+        token = github.authorize_access_token()
+        user_info = github.get('user').json()
+
+        users = load_users()
+        user_record = next((u for u in users if u['id'] == current_user.id), None)
+        if user_record:
+            user_record['github_id'] = user_info.get('id')
+            save_users(users)
+            
+        user_data = get_user_data()
+        user_data['user_settings']['github_picture'] = user_info.get('avatar_url')
+        user_data['user_settings']['github_profile_url'] = user_info.get('html_url')
+        save_user_data(user_data)
+
+        return redirect(url_for('settings'))
+    except Exception as e:
+        print(f"Error linking GitHub account: {e}")
+        return redirect(url_for('settings'))
 
 # In app.py
 @app.route('/error')
