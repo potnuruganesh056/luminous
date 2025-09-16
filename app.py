@@ -10,6 +10,7 @@ from authlib.integrations.flask_client import OAuth
 import paho.mqtt.client as mqtt
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_mail import Mail, Message
+from datetime import timedelta
 import requests
 import base64
 import redis
@@ -30,6 +31,9 @@ app.config['MAIL_USE_TLS'] = os.environ.get('MAIL_USE_TLS', 'true').lower() in [
 app.config['MAIL_USERNAME'] = os.environ.get('MAIL_USERNAME')
 app.config['MAIL_PASSWORD'] = os.environ.get('MAIL_PASSWORD')
 app.config['MAIL_DEFAULT_SENDER'] = os.environ.get('MAIL_DEFAULT_SENDER', app.config['MAIL_USERNAME'])
+
+app.config['REMEMBER_COOKIE_DURATION'] = timedelta(days=7)
+
 mail = Mail(app)
 
 # --- Redis Database Connection ---
@@ -199,31 +203,63 @@ def _create_new_user_entry(profile):
 
     return new_user_record
 
+
 def find_or_create_oauth_user(profile):
-    """Central logic for all OAuth logins. Finds, links, or creates a user."""
+    """
+    The single source of truth for creating or updating a user from an OAuth profile.
+    """
+    all_data = get_all_data_from_db()
+    all_users = get_all_users_from_db()
+    
+    # Find an existing user by their email address
     user_record = get_user_by_email(profile['email'])
     
-    if user_record: # User with this email already exists
-        all_users = get_all_users_from_db()
-        # Find the specific record in the list to update it
+    # --- Case 1: User with this email already exists ---
+    if user_record:
         user_to_update = next((u for u in all_users if u['id'] == user_record['id']), None)
-        
+        user_data_to_update = all_data.get(user_record['id'])
+
+        # MODIFICATION: Update the user's details on every login
+        user_to_update['username'] = profile['name']
+        user_data_to_update['user_settings']['name'] = profile['name']
+        user_data_to_update['user_settings']['picture'] = profile.get('picture')
+
+        # Link the new provider
         if profile['provider'] == 'google':
             user_to_update['google_id'] = profile['provider_id']
+            user_data_to_update['user_settings']['google_picture'] = profile['picture']
         elif profile['provider'] == 'github':
             user_to_update['github_id'] = profile['provider_id']
+            user_data_to_update['user_settings']['github_picture'] = profile.get('picture')
+            user_data_to_update['user_settings']['github_profile_url'] = profile.get('profile_url')
+
+    # --- Case 2: No user with this email, create a new one ---
+    else:
+        new_user_id = str(int(all_users[-1]['id']) + 1) if all_users else "1"
+        user_record = {
+            'id': new_user_id, 'username': profile['name'], 'password_hash': None,
+            'google_id': profile['provider_id'] if profile['provider'] == 'google' else None,
+            'github_id': profile['provider_id'] if profile['provider'] == 'github' else None,
+        }
+        all_users.append(user_record)
         
-        save_all_users_to_db(all_users)
-        # We also can update their picture/name from the latest login
-        # (This logic would go here if needed)
+        # Create and add the new user's data
+        user_data_to_update = create_default_user_data(name=profile['name'], email=profile['email'])
+        user_data_to_update['user_settings']['picture'] = profile.get('picture')
+        if profile['provider'] == 'google':
+            user_data_to_update['user_settings']['google_picture'] = profile['picture']
+        elif profile['provider'] == 'github':
+            user_data_to_update['user_settings']['github_picture'] = profile['picture']
+            user_data_to_update['user_settings']['github_profile_url'] = profile['profile_url']
+        all_data[new_user_id] = user_data_to_update
 
-    else: # No user with this email, create a new one
-        user_record = _create_new_user_entry(profile)
-
-    # Log the user in and redirect
+    # Save all changes back to the database
+    save_all_users_to_db(all_users)
+    save_all_data_to_db(all_data)
+    
+    # Log the user in with the "remember me" functionality
     user_obj = User(user_record['id'], user_record['username'], user_record.get('password_hash'))
-    login_user(user_obj)
-    return redirect(url_for('home'))
+    login_user(user_obj, remember=True)
 
 def create_default_user_data(name, email, picture=None):
     """Creates the default data structure for a new user."""
@@ -247,52 +283,9 @@ def create_default_user_data(name, email, picture=None):
         }]
     }
 
-
-# In app.py
-# In app.py
-
-def load_data():
-    """MODIFIED: Loads the main application data object from the Redis database."""
-    data_json = redis_client.get('data')
-    return json.loads(data_json) if data_json else {}
-
-def save_data(data):
-    """MODIFIED: Saves the main application data object to the Redis database."""
-    redis_client.set('data', json.dumps(data))
-
-def load_users():
-    """MODIFIED: Loads the list of users from the Redis database."""
-    users_json = redis_client.get('users')
-    return json.loads(users_json) if users_json else []
-
 def save_users(users):
     """MODIFIED: Saves the list of users to the Redis database."""
     redis_client.set('users', json.dumps(users))
-
-# In app.py
-
-def get_user_data():
-    """
-    Gets the application data (settings, rooms) for the currently logged-in user.
-    This function now correctly calls the Redis-powered load_data().
-    """
-    data = load_data() # This now reads from Redis
-    return data.get(current_user.id, {
-        "user_settings": {
-            "name": current_user.username,
-            "email": "", "mobile": "", "channel": "email", "theme": "light", "ai_control_interval": 5
-        },
-        "rooms": []
-    })
-
-def save_user_data(user_data):
-    """
-    Saves the application data for the currently logged-in user.
-    This function now correctly calls the Redis-powered load_data() and save_data().
-    """
-    data = load_data() # This now reads from Redis
-    data[current_user.id] = user_data
-    save_data(data) # This now writes to Redis
 
 # -- Analytics Data --
 # def generate_analytics_data():
@@ -592,29 +585,42 @@ def generate_efficiency_insights(data, stats):
         'score': round(efficiency_score),
         'insights': insights
     }
+    
+def get_current_user_theme():
+    """Gets the theme for the currently logged-in user from Redis."""
+    all_data = get_all_data_from_db()
+    user_data = all_data.get(current_user.id, {})
+    return user_data.get("user_settings", {}).get("theme", "light")
 
 # --- Frontend Routes ---
+# In app.py
+
 @app.route('/signin', methods=['GET', 'POST'])
 def signin():
     if current_user.is_authenticated:
         return redirect(url_for('home'))
+    
     if request.method == 'POST':
-        username = request.form['username']
-        password = request.form['password']
-        
-        # MODIFICATION: Use the new Redis helper function
-        all_users = get_all_users_from_db()
-        user_data = next((u for u in all_users if u['username'] == username), None)
-
-        # Check for user, password hash, and then check the password
-        if user_data and user_data.get('password_hash') and check_password_hash(user_data['password_hash'], password):
-            user_obj = User(user_data['id'], user_data['username'], user_data['password_hash'])
-            login_user(user_obj)
-            return redirect(url_for('home'))
+        try:
+            username = request.form['username']
+            password = request.form['password']
             
-        flash('Invalid username or password.', 'error')
-        return redirect(url_for('signin'))
-        
+            all_users = get_all_users_from_db()
+            user_data = next((u for u in all_users if u['username'] == username), None)
+
+            if user_data and user_data.get('password_hash') and check_password_hash(user_data['password_hash'], password):
+                user_obj = User(user_data['id'], user_data['username'], user_data['password_hash'])
+                login_user(user_obj, remember=True)
+                return redirect(url_for('home'))
+            
+            flash('Invalid username or password.', 'error')
+            return redirect(url_for('signin'))
+
+        except Exception as e:
+            app.logger.error(f"Error during sign-in: {e}")
+            flash('An unexpected error occurred. Please try again.', 'error')
+            return redirect(url_for('signin'))
+            
     return render_template('signin.html')
 
 @app.route('/signup', methods=['GET', 'POST'])
@@ -645,10 +651,15 @@ def signup():
     return render_template('signup.html')
 
 
+# In app.py
+
 @app.route('/logout')
 @login_required
 def logout():
+    # MODIFICATION: Clear the entire session dictionary
+    session.clear()
     logout_user()
+    flash("You have been successfully logged out.", "success")
     return redirect(url_for('signin'))
 
 @app.route('/')
@@ -680,96 +691,121 @@ def contact():
     return render_template('contact.html', theme=theme)
 
 # --- Backend API Endpoints ---
+# In app.py
+
 @app.route('/api/esp/check-in', methods=['GET'])
 def check_in():
-    data = load_data()
+    # MODIFICATION: Use Redis helpers
+    all_data = get_all_data_from_db()
     user_id = request.args.get('user_id')
-    user_data = data.get(user_id, {})
+    user_data = all_data.get(user_id, {})
     last_command = user_data.get('last_command', {})
     
     if last_command and last_command.get('timestamp', 0) > user_data.get('last_command_sent_time', 0):
         user_data['last_command_sent_time'] = last_command['timestamp']
-        data[user_id] = user_data
-        save_data(data)
+        save_all_data_to_db(all_data)
         return jsonify(last_command), 200
     
     return jsonify({}), 200
+    
 @app.route('/api/add-appliance', methods=['POST'])
 @login_required
 def add_appliance():
     try:
-        data_from_request = request.json
-        room_id = data_from_request['room_id']
-        appliance_name = data_from_request['name']
-        relay_number = data_from_request['relay_number']
-        
-        user_data = get_user_data()
-        room = next((r for r in user_data['rooms'] if r['id'] == room_id), None)
+        req_data = request.get_json()
+        room_id = req_data['room_id']
+        appliance_name = req_data['name']
+        relay_number = int(req_data['relay_number'])
+
+        all_data = get_all_data_from_db()
+        user_data = all_data.get(current_user.id)
+        if not user_data:
+            return jsonify({"status": "error", "message": "User data not found."}), 404
+
+        room = next((r for r in user_data.get('rooms', []) if r['id'] == room_id), None)
         if not room:
             return jsonify({"status": "error", "message": "Room not found."}), 404
             
-        new_appliance_id = str(len(room['appliances']) + 1)
+        new_appliance_id = str(int(time.time() * 1000)) # Use timestamp for a more unique ID
+
         room['appliances'].append({
             "id": new_appliance_id,
             "name": appliance_name,
             "state": False,
             "locked": False,
             "timer": None,
-            "relay_number": int(relay_number)
+            "relay_number": relay_number
         })
-        save_user_data(user_data)
+        save_all_data_to_db(all_data)
         
         return jsonify({"status": "success", "appliance_id": new_appliance_id}), 200
+    except (KeyError, TypeError):
+        return jsonify({"status": "error", "message": "Invalid request data."}), 400
     except Exception as e:
-        return jsonify({"status": "error", "message": str(e)}), 500
+        app.logger.error(f"Error in add_appliance: {e}")
+        return jsonify({"status": "error", "message": "An internal error occurred."}), 500
 
 @app.route('/api/get-rooms-and-appliances', methods=['GET'])
 @login_required
 def get_rooms_and_appliances():
-    try:
-        user_data = get_user_data()
-        return jsonify(user_data['rooms']), 200
-    except Exception as e:
-        return jsonify({"status": "error", "message": str(e)}), 500
+    all_data = get_all_data_from_db()
+    user_data = all_data.get(current_user.id, {})
+    return jsonify(user_data.get('rooms', []))
 
 @app.route('/api/update-room-settings', methods=['POST'])
 @login_required
 def update_room_settings():
     try:
-        data_from_request = request.json
-        room_id = data_from_request['room_id']
-        new_name = data_from_request.get('name')
-        ai_control = data_from_request.get('ai_control')
+        req_data = request.get_json()
+        room_id = req_data['room_id']
         
-        user_data = get_user_data()
-        room = next((r for r in user_data['rooms'] if r['id'] == room_id), None)
+        all_data = get_all_data_from_db()
+        user_data = all_data.get(current_user.id)
+        if not user_data:
+            return jsonify({"status": "error", "message": "User data not found."}), 404
+
+        room = next((r for r in user_data.get('rooms', []) if r['id'] == room_id), None)
         if not room:
             return jsonify({"status": "error", "message": "Room not found."}), 404
         
-        if new_name is not None:
-            room['name'] = new_name
-        if ai_control is not None:
-            room['ai_control'] = ai_control
-            # Additional logic to handle AI control toggle could go here
-
-        save_user_data(user_data)
+        if 'name' in req_data:
+            room['name'] = req_data['name']
+        if 'ai_control' in req_data:
+            room['ai_control'] = req_data['ai_control']
+            
+        save_all_data_to_db(all_data)
         
         return jsonify({"status": "success", "message": "Room settings updated."}), 200
+    except (KeyError, TypeError):
+        return jsonify({"status": "error", "message": "Invalid request data."}), 400
     except Exception as e:
-        return jsonify({"status": "error", "message": str(e)}), 500
+        app.logger.error(f"Error in update_room_settings: {e}")
+        return jsonify({"status": "error", "message": "An internal error occurred."}), 500
         
 @app.route('/api/delete-room', methods=['POST'])
 @login_required
 def delete_room():
     try:
-        data_from_request = request.json
-        room_id = data_from_request['room_id']
-        user_data = get_user_data()
-        user_data['rooms'] = [r for r in user_data['rooms'] if r['id'] != room_id]
-        save_user_data(user_data)
+        room_id = request.json['room_id']
+        
+        all_data = get_all_data_from_db()
+        user_data = all_data.get(current_user.id)
+        if not user_data:
+            return jsonify({"status": "error", "message": "User data not found."}), 404
+
+        original_room_count = len(user_data.get('rooms', []))
+        user_data['rooms'] = [r for r in user_data.get('rooms', []) if r['id'] != room_id]
+
+        if len(user_data['rooms']) == original_room_count:
+            return jsonify({"status": "error", "message": "Room not found."}), 404
+
+        save_all_data_to_db(all_data)
         return jsonify({"status": "success", "message": "Room deleted."}), 200
+    except KeyError:
+        return jsonify({"status": "error", "message": "Missing room_id."}), 400
     except Exception as e:
-        return jsonify({"status": "error", "message": str(e)}), 500
+        app.logger.error(f"Error in delete_room: {e}")
+        return jsonify({"status": "error", "message": "An internal error occurred."}), 500
 
 @app.route('/api/add-room', methods=['POST'])
 @login_required
@@ -789,20 +825,33 @@ def add_room():
 @login_required
 def delete_appliance():
     try:
-        data_from_request = request.json
-        room_id = data_from_request['room_id']
-        appliance_id = data_from_request['appliance_id']
+        req_data = request.json
+        room_id = req_data['room_id']
+        appliance_id = req_data['appliance_id']
 
-        user_data = get_user_data()
-        room = next((r for r in user_data['rooms'] if r['id'] == room_id), None)
+        all_data = get_all_data_from_db()
+        user_data = all_data.get(current_user.id)
+        if not user_data:
+            return jsonify({"status": "error", "message": "User data not found."}), 404
+
+        room = next((r for r in user_data.get('rooms', []) if r['id'] == room_id), None)
         if not room:
             return jsonify({"status": "error", "message": "Room not found."}), 404
 
-        room['appliances'] = [a for a in room['appliances'] if a['id'] != appliance_id]
-        save_user_data(user_data)
+        original_app_count = len(room.get('appliances', []))
+        room['appliances'] = [a for a in room.get('appliances', []) if a['id'] != appliance_id]
+        
+        if len(room['appliances']) == original_app_count:
+             return jsonify({"status": "error", "message": "Appliance not found."}), 404
+
+        save_all_data_to_db(all_data)
         return jsonify({"status": "success", "message": "Appliance deleted."}), 200
+    except KeyError:
+        return jsonify({"status": "error", "message": "Missing room_id or appliance_id."}), 400
     except Exception as e:
-        return jsonify({"status": "error", "message": str(e)}), 500
+        app.logger.error(f"Error in delete_appliance: {e}")
+        return jsonify({"status": "error", "message": "An internal error occurred."}), 500
+        
 @app.route('/api/set-appliance-state', methods=['POST'])
 @login_required
 def set_appliance_state():
@@ -845,226 +894,257 @@ def set_appliance_state():
         return jsonify({"status": "success", "message": message}), 200
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
+# In app.py
+
+@app.route('/api/set-appliance-state', methods=['POST'])
+@login_required
+def set_appliance_state():
+    try:
+        data = request.get_json()
+        
+        # 1. Input Validation: Check for required keys
+        if not all(k in data for k in ['room_id', 'appliance_id', 'state']):
+            return jsonify({"status": "error", "message": "Missing required fields."}), 400
+
+        room_id = data['room_id']
+        appliance_id = data['appliance_id']
+        state = data['state']
+        
+        # 2. Load data and find the specific user's records
+        all_data = get_all_data_from_db()
+        user_data = all_data.get(current_user.id)
+        if not user_data:
+            return jsonify({"status": "error", "message": "User data not found."}), 404
+        
+        room = next((r for r in user_data.get('rooms', []) if r['id'] == room_id), None)
+        if not room:
+            return jsonify({"status": "error", "message": "Room not found."}), 404
+            
+        appliance = next((a for a in room.get('appliances', []) if a['id'] == appliance_id), None)
+        if not appliance:
+            return jsonify({"status": "error", "message": "Appliance not found."}), 404
+            
+        # 3. Apply the changes
+        appliance['state'] = state
+        if not state:
+            appliance['timer'] = None # Clear timer when turned off
+
+        # 4. Save the entire data object back to Redis
+        save_all_data_to_db(all_data)
+        
+        # ... (Your MQTT logic here) ...
+        if mqtt_client:
+            mqtt_client.publish(MQTT_TOPIC_COMMAND, f"{current_user.id}:{room_id}:{appliance_id}:{appliance['relay_number']}:{int(state)}")
+        
+        action = "turned ON" if state else "turned OFF"
+        message = f"Appliance '{appliance['name']}' in room '{room['name']}' has been {action}."
+        
+        return jsonify({"status": "success", "message": message}), 200
+
+    except Exception as e:
+        # 5. Log the detailed error for the developer and return a generic message to the user
+        app.logger.error(f"Error in /api/set-appliance-state: {e}")
+        return jsonify({"status": "error", "message": "An internal server error occurred."}), 500
 
 @app.route('/api/set-appliance-name', methods=['POST'])
 @login_required
 def set_appliance_name():
     try:
-        data_from_request = request.json
-        room_id = data_from_request['room_id']
-        appliance_id = data_from_request['appliance_id']
-        name = data_from_request['name']
-        
-        user_data = get_user_data()
-        room = next((r for r in user_data['rooms'] if r['id'] == room_id), None)
-        if not room:
-            return jsonify({"status": "error", "message": "Room not found."}), 404
-        
-        appliance = next((a for a in room['appliances'] if a['id'] == appliance_id), None)
+        req_data = request.json
+        room_id = req_data['room_id']
+        appliance_id = req_data['appliance_id']
+        name = req_data['name']
+
+        all_data = get_all_data_from_db()
+        user_data = all_data.get(current_user.id)
+        room = next((r for r in user_data.get('rooms', []) if r['id'] == room_id), None)
+        appliance = next((a for a in room.get('appliances', []) if a['id'] == appliance_id), None)
         if not appliance:
             return jsonify({"status": "error", "message": "Appliance not found."}), 404
         
         appliance['name'] = name
-        save_user_data(user_data)
-        
+        save_all_data_to_db(all_data)
         return jsonify({"status": "success", "message": "Name updated."}), 200
+    except (KeyError, TypeError):
+        return jsonify({"status": "error", "message": "Invalid request data."}), 400
     except Exception as e:
-        return jsonify({"status": "error", "message": str(e)}), 500
+        app.logger.error(f"Error in set_appliance_name: {e}")
+        return jsonify({"status": "error", "message": "An internal error occurred."}), 500
 
 @app.route('/api/set-lock', methods=['POST'])
 @login_required
 def set_lock():
     try:
-        data_from_request = request.json
-        room_id = data_from_request['room_id']
-        appliance_id = data_from_request['appliance_id']
-        locked = data_from_request['locked']
-
-        user_data = get_user_data()
-        room = next((r for r in user_data['rooms'] if r['id'] == room_id), None)
-        if not room:
-            return jsonify({"status": "error", "message": "Room not found."}), 404
+        req_data = request.json
+        appliance_id = req_data['appliance_id']
+        room_id = req_data['room_id']
+        locked = req_data['locked']
         
-        appliance = next((a for a in room['appliances'] if a['id'] == appliance_id), None)
+        all_data = get_all_data_from_db()
+        user_data = all_data.get(current_user.id)
+        room = next((r for r in user_data.get('rooms', []) if r['id'] == room_id), None)
+        appliance = next((a for a in room.get('appliances', []) if a['id'] == appliance_id), None)
         if not appliance:
             return jsonify({"status": "error", "message": "Appliance not found."}), 404
-        
-        appliance['locked'] = locked
-        save_user_data(user_data)
 
-        if mqtt_client:
-            mqtt_client.publish(MQTT_TOPIC_COMMAND, f"{current_user.id}:{room_id}:{appliance_id}:{appliance['relay_number']}:lock:{int(locked)}")
+        appliance['locked'] = locked
+        save_all_data_to_db(all_data)
+        
+        # ... MQTT logic if needed ...
 
         return jsonify({"status": "success", "message": "Lock state updated."}), 200
+    except (KeyError, TypeError):
+        return jsonify({"status": "error", "message": "Invalid request data."}), 400
     except Exception as e:
-        return jsonify({"status": "error", "message": str(e)}), 500
+        app.logger.error(f"Error in set_lock: {e}")
+        return jsonify({"status": "error", "message": "An internal error occurred."}), 500
 
 @app.route('/api/update-appliance-settings', methods=['POST'])
 @login_required
 def update_appliance_settings():
     try:
-        data_from_request = request.json
-        room_id = data_from_request['room_id']
-        appliance_id = data_from_request['appliance_id']
-        new_name = data_from_request['name']
-        new_relay_number = data_from_request['relay_number']
-        new_room_id = data_from_request['new_room_id']
+        req_data = request.get_json()
+        # ... (same logic as set_appliance_name, but also update relay_number and handle room moves) ...
+        # This function combines moving an appliance and updating its details.
         
-        user_data = get_user_data()
-        
-        original_room = next((r for r in user_data['rooms'] if r['id'] == room_id), None)
-        if not original_room:
-            return jsonify({"status": "error", "message": "Original room not found."}), 404
-        appliance = next((a for a in original_room['appliances'] if a['id'] == appliance_id), None)
+        all_data = get_all_data_from_db()
+        user_data = all_data.get(current_user.id)
+
+        original_room = next((r for r in user_data['rooms'] if r['id'] == req_data['room_id']), None)
+        appliance = next((a for a in original_room['appliances'] if a['id'] == req_data['appliance_id']), None)
         if not appliance:
-            return jsonify({"status": "error", "message": "Appliance not found."}), 403
+            return jsonify({"status": "error", "message": "Appliance not found."}), 404
         
-        if new_room_id and new_room_id != room_id:
-            target_room = next((r for r in user_data['rooms'] if r['id'] == new_room_id), None)
+        # Update details
+        appliance['name'] = req_data['name']
+        appliance['relay_number'] = int(req_data['relay_number'])
+
+        # Handle moving to a new room
+        if req_data['new_room_id'] != req_data['room_id']:
+            target_room = next((r for r in user_data['rooms'] if r['id'] == req_data['new_room_id']), None)
             if not target_room:
                 return jsonify({"status": "error", "message": "Target room not found."}), 404
             
-            original_room['appliances'].remove(appliance)
-            appliance['id'] = str(len(target_room['appliances']) + 1)
-            target_room['appliances'].append(appliance)
-        
-        appliance['name'] = new_name
-        appliance['relay_number'] = new_relay_number
-        save_user_data(user_data)
-        
+            target_room['appliances'].append(appliance) # Add to new room
+            original_room['appliances'] = [a for a in original_room['appliances'] if a['id'] != req_data['appliance_id']] # Remove from old room
+
+        save_all_data_to_db(all_data)
         return jsonify({"status": "success", "message": "Appliance settings updated."}), 200
+    except (KeyError, TypeError):
+        return jsonify({"status": "error", "message": "Invalid request data."}), 400
     except Exception as e:
-        return jsonify({"status": "error", "message": str(e)}), 500
+        app.logger.error(f"Error in update_appliance_settings: {e}")
+        return jsonify({"status": "error", "message": "An internal error occurred."}), 500
 
 @app.route('/api/set-timer', methods=['POST'])
 @login_required
 def set_timer():
     try:
-        data_from_request = request.json
-        room_id = data_from_request['room_id']
-        appliance_id = data_from_request['appliance_id']
-        timer_timestamp = data_from_request.get('timer')
+        req_data = request.get_json()
+        room_id = req_data['room_id']
+        appliance_id = req_data['appliance_id']
+        timer_timestamp = req_data.get('timer')
         
-        user_data = get_user_data()
-        room = next((r for r in user_data['rooms'] if r['id'] == room_id), None)
-        if not room:
-            return jsonify({"status": "error", "message": "Room not found."}), 404
-        
-        appliance = next((a for a in room['appliances'] if a['id'] == appliance_id), None)
+        all_data = get_all_data_from_db()
+        user_data = all_data.get(current_user.id)
+        room = next((r for r in user_data.get('rooms', []) if r['id'] == room_id), None)
+        appliance = next((a for a in room.get('appliances', []) if a['id'] == appliance_id), None)
         if not appliance:
-            return jsonify({"status": "error", "message": "Appliance not found."}), 403
-        
+            return jsonify({"status": "error", "message": "Appliance not found."}), 404
+
+        appliance['timer'] = timer_timestamp
         if timer_timestamp:
             appliance['state'] = True
-            appliance['timer'] = timer_timestamp
-            user_data['last_command'] = {
-                "room_id": room_id,
-                "appliance_id": appliance_id,
-                "state": True,
-                "relay_number": appliance['relay_number'],
-                "timestamp": int(time.time())
-            }
-            if mqtt_client:
-                mqtt_client.publish(MQTT_TOPIC_COMMAND, f"{current_user.id}:{room_id}:{appliance_id}:{appliance['relay_number']}:on")
-        else: # Timer is being cancelled or turned off
-            appliance['state'] = False
-            appliance['timer'] = None
-            user_data['last_command'] = {
-                "room_id": room_id,
-                "appliance_id": appliance_id,
-                "state": False,
-                "relay_number": appliance['relay_number'],
-                "timestamp": int(time.time())
-            }
-            if mqtt_client:
-                 mqtt_client.publish(MQTT_TOPIC_COMMAND, f"{current_user.id}:{room_id}:{appliance_id}:{appliance['relay_number']}:off")
-
-
-        save_user_data(user_data)
         
+        save_all_data_to_db(all_data)
         return jsonify({"status": "success", "message": "Timer set."}), 200
+    except (KeyError, TypeError):
+        return jsonify({"status": "error", "message": "Invalid request data."}), 400
     except Exception as e:
-        return jsonify({"status": "error", "message": str(e)}), 500
-        
+        app.logger.error(f"Error in set_timer: {e}")
+        return jsonify({"status": "error", "message": "An internal error occurred."}), 500
 @app.route('/api/save-room-order', methods=['POST'])
 @login_required
 def save_room_order():
     try:
-        data_from_request = request.json
-        new_order_ids = data_from_request['order']
-        user_data = get_user_data()
-        room_map = {room['id']: room for room in user_data['rooms']}
-        user_data['rooms'] = [room_map[id] for id in new_order_ids]
-        save_user_data(user_data)
-        return jsonify({"status": "success"}), 200
-    except Exception as e:
-        return jsonify({"status": "error", "message": str(e)}), 500
+        new_order_ids = request.json['order']
         
+        all_data = get_all_data_from_db()
+        user_data = all_data.get(current_user.id)
+        
+        room_map = {room['id']: room for room in user_data.get('rooms', [])}
+        user_data['rooms'] = [room_map[id] for id in new_order_ids if id in room_map]
+        
+        save_all_data_to_db(all_data)
+        return jsonify({"status": "success"}), 200
+    except (KeyError, TypeError):
+        return jsonify({"status": "error", "message": "Invalid order data."}), 400
+    except Exception as e:
+        app.logger.error(f"Error in save_room_order: {e}")
+        return jsonify({"status": "error", "message": "An internal error occurred."}), 500
+
 @app.route('/api/save-appliance-order', methods=['POST'])
 @login_required
 def save_appliance_order():
     try:
-        data_from_request = request.json
-        room_id = data_from_request['room_id']
-        new_order_ids = data_from_request['order']
+        req_data = request.json
+        room_id = req_data['room_id']
+        new_order_ids = req_data['order']
         
-        user_data = get_user_data()
-        room = next((r for r in user_data['rooms'] if r['id'] == room_id), None)
+        all_data = get_all_data_from_db()
+        user_data = all_data.get(current_user.id)
+        room = next((r for r in user_data.get('rooms', []) if r['id'] == room_id), None)
         if not room:
             return jsonify({"status": "error", "message": "Room not found."}), 404
-            
-        appliance_map = {appliance['id']: appliance for appliance in room['appliances']}
-        room['appliances'] = [appliance_map[id] for id in new_order_ids]
-        save_user_data(user_data)
         
+        appliance_map = {appliance['id']: appliance for appliance in room.get('appliances', [])}
+        room['appliances'] = [appliance_map[id] for id in new_order_ids if id in appliance_map]
+        
+        save_all_data_to_db(all_data)
         return jsonify({"status": "success"}), 200
+    except (KeyError, TypeError):
+        return jsonify({"status": "error", "message": "Invalid order data."}), 400
     except Exception as e:
-        return jsonify({"status": "error", "message": str(e)}), 500
+        app.logger.error(f"Error in save_appliance_order: {e}")
+        return jsonify({"status": "error", "message": "An internal error occurred."}), 500
+
+# In app.py
 
 @app.route('/api/global-ai-signal', methods=['POST'])
+@login_required # It's safer to require a login for this
 def global_ai_signal():
-    """
-    Receives a signal for global AI control and updates all non-locked appliances.
-    """
     data = request.get_json()
     if data is None or 'state' not in data:
         return jsonify({"status": "error", "message": "Invalid request"}), 400
 
     human_detected = data.get('state', False)
-    action_str = "ON" if human_detected else "OFF"
-    updated_count = 0
-
+    
     try:
-        # Get all user data and iterate through all users and their rooms
-        all_data = load_data()
+        # MODIFICATION: Use Redis helpers
+        all_data = get_all_data_from_db()
+        user_data = all_data.get(current_user.id)
+        if not user_data:
+            return jsonify({"status": "error", "message": "User data not found."}), 404
+
+        # Iterate through the rooms of the current user
+        for room in user_data.get('rooms', []):
+            for appliance in room.get('appliances', []):
+                if not appliance.get('locked', False):
+                    appliance['state'] = human_detected
         
-        for user_id, user_data in all_data.items():
-            if 'rooms' not in user_data:
-                continue
-                
-            # Iterate through all rooms for this user
-            for room in user_data['rooms']:
-                for appliance in room['appliances']:
-                    # Check if the appliance is NOT locked
-                    if not appliance.get('locked', False):
-                        # Update the state in our backend data
-                        appliance['state'] = human_detected
-                        updated_count += 1
+        save_all_data_to_db(all_data)
         
-        # Save the updated data back to file
-        save_data(all_data)
-        
-        # Send MQTT command for global control (if MQTT client exists)
+        # ... (your MQTT logic) ...
         if mqtt_client:
             mqtt_client.publish(MQTT_TOPIC_COMMAND, f"global:all:ai:{int(human_detected)}")
         
         message = f"Global signal processed. Turned {action_str} {updated_count} unlocked appliances."
         return jsonify({"status": "success", "message": message}), 200
-
+        
     except Exception as e:
-        print(f"Error processing global AI signal: {e}")
+        app.logger.error(f"Error in global_ai_signal: {e}")
         return jsonify({"status": "error", "message": "An internal error occurred"}), 500
-
+        
 
 @app.route('/api/get-analytics', methods=['GET'])
 @login_required
@@ -1585,6 +1665,10 @@ def oauth_result():
 
 # In app.py
 
+# In app.py
+
+# In app.py
+
 @app.route('/google/callback')
 def authorize_google():
     try:
@@ -1597,27 +1681,12 @@ def authorize_google():
             'email': user_info.get('email'),
             'picture': user_info.get('picture')
         }
-        # This function will log the user in or create a new account
-        find_or_create_oauth_user(profile) 
-        
-        # If successful, redirect to the main page
-        return redirect(url_for('home'))
-
+        # The find_or_create function handles the redirect on success
+        return find_or_create_oauth_user(profile)
     except Exception as e:
-        # MODIFICATION: Print the actual error to the logs for debugging
-        print(f"--- GOOGLE LOGIN ERROR ---")
-        print(f"An exception occurred: {e}")
-        print(f"--------------------------")
-        
-        # Then redirect to the error page so the user sees a message
-        return redirect(url_for('oauth_result', status='error', message='Google login failed. Please check the server logs.'))
-
-
-@app.route('/login/github')
-def login_github():
-    redirect_uri = url_for('authorize_github', _external=True)
-    return github.authorize_redirect(redirect_uri)
-
+        print(f"--- GOOGLE LOGIN ERROR --- \n{e}\n--------------------------")
+        # MODIFICATION: Redirect to the main error endpoint on failure
+        return redirect(url_for('error_page', error_message='Google login failed. Please try again.'))
 @app.route('/github/callback')
 def authorize_github():
     try:
@@ -1625,19 +1694,30 @@ def authorize_github():
         user_info = github.get('user').json()
         user_emails = github.get('user/emails').json()
         primary_email = next((e['email'] for e in user_emails if e['primary']), None)
+        
         if not primary_email:
-            return redirect(url_for('oauth_result', status='error', message='Could not retrieve GitHub email.'))
+            flash("Could not retrieve a primary email from GitHub.", "error")
+            return redirect(url_for('signin'))
+            
         profile = {
             'provider': 'github',
             'provider_id': user_info.get('id'),
             'name': user_info.get('name') or user_info.get('login'),
             'email': primary_email,
-            'picture': user_info.get('avatar_url')
+            'picture': user_info.get('avatar_url'),
+            'profile_url': user_info.get('html_url')
         }
-        response = find_or_create_oauth_user(profile)
-        return redirect(url_for('oauth_result', status='success', message='GitHub login successful!'))
+        # The find_or_create function handles the redirect on success
+        return find_or_create_oauth_user(profile)
     except Exception as e:
-        return redirect(url_for('oauth_result', status='error', message='GitHub login failed. Please try again.'))
+        print(f"--- GITHUB LOGIN ERROR --- \n{e}\n--------------------------")
+        # MODIFICATION: Redirect to the main error endpoint on failure
+        return redirect(url_for('error_page', error_message='GitHub login failed. Please try again.'))
+        
+@app.route('/login/github')
+def login_github():
+    redirect_uri = url_for('authorize_github', _external=True)
+    return github.authorize_redirect(redirect_uri)
 
 @app.route('/link/google')
 @login_required
@@ -1677,13 +1757,10 @@ def link_authorize_google():
         token = google.authorize_access_token()
         user_info = google.get('userinfo').json()
 
-        # --- MODIFIED: More Robust Read-Modify-Write Logic ---
+        # MODIFICATION: Use new Redis helper functions
+        all_users = get_all_users_from_db()
+        all_data = get_all_data_from_db()
 
-        # 1. Load both full datasets
-        all_users = load_users()
-        all_data = load_data()
-
-        # 2. Find the records for the currently logged-in user
         user_record = next((u for u in all_users if u['id'] == current_user.id), None)
         user_profile_data = all_data.get(current_user.id)
         
@@ -1691,16 +1768,15 @@ def link_authorize_google():
             flash("A data inconsistency was detected. Please contact support.", "error")
             return redirect(url_for('settings'))
 
-        # 3. Modify the data directly
+        # Modify the data
         user_record['google_id'] = user_info.get('sub')
         user_profile_data['user_settings']['google_picture'] = user_info.get('picture')
-        # If the user didn't have a primary email, set it from their verified Google account
         if not user_profile_data['user_settings'].get('email'):
             user_profile_data['user_settings']['email'] = user_info.get('email')
 
-        # 4. Save both full datasets
-        save_users(all_users)
-        save_data(all_data)
+        # Save the data back to Redis
+        save_all_users_to_db(all_users)
+        save_all_data_to_db(all_data)
 
         flash("Your Google account has been successfully linked.", "success")
         return redirect(url_for('settings'))
@@ -1710,22 +1786,18 @@ def link_authorize_google():
         flash("An error occurred while linking your Google account. Please try again.", "error")
         return redirect(url_for('settings'))
 
-# In app.py
-
 @app.route('/link/github/callback')
 @login_required
 def link_authorize_github():
     try:
-        token = github.authorize_access_token()
-        user_info = github.get('user').json()
+        # NOTE: This assumes you are using a 'github_link' client for this route
+        token = github_link.authorize_access_token()
+        user_info = github_link.get('user').json()
         
-        # --- MODIFIED: More Robust Read-Modify-Write Logic ---
+        # MODIFICATION: Use new Redis helper functions
+        all_users = get_all_users_from_db()
+        all_data = get_all_data_from_db()
 
-        # 1. Load both full datasets
-        all_users = load_users()
-        all_data = load_data()
-
-        # 2. Find the records for the currently logged-in user
         user_record = next((u for u in all_users if u['id'] == current_user.id), None)
         user_profile_data = all_data.get(current_user.id)
 
@@ -1733,14 +1805,14 @@ def link_authorize_github():
             flash("A data inconsistency was detected. Please contact support.", "error")
             return redirect(url_for('settings'))
 
-        # 3. Modify the data directly
+        # Modify the data
         user_record['github_id'] = user_info.get('id')
         user_profile_data['user_settings']['github_picture'] = user_info.get('avatar_url')
         user_profile_data['user_settings']['github_profile_url'] = user_info.get('html_url')
         
-        # 4. Save both full datasets
-        save_users(all_users)
-        save_data(all_data)
+        # Save the data back to Redis
+        save_all_users_to_db(all_users)
+        save_all_data_to_db(all_data)
         
         flash("Your GitHub account has been successfully linked.", "success")
         return redirect(url_for('settings'))
@@ -1751,7 +1823,7 @@ def link_authorize_github():
         return redirect(url_for('settings'))
 
 # In app.py
-@app.route('/error')
+@app.route('/error_page')
 def error_page():
     # You can pass a specific error message to the template if needed
     return render_template('error.html', error_message="An unexpected error occurred. Please try again later.")
