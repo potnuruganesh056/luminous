@@ -1594,17 +1594,36 @@ def authorize_github():
         return redirect(url_for('oauth_result', status='error', message='GitHub login failed. Please try again.'))
 
 
-# In app.py, add these new routes
+# In app.py
+from flask import Flask, ..., flash # <-- Make sure flash is imported at the top
 
 @app.route('/link/google')
 @login_required
 def link_google():
-    """Initiates the process of linking a Google account to the current user."""
-    # Use the new, dedicated callback URL for linking
+    # MODIFICATION: Check if user is already linked
+    users = load_users()
+    user_record = next((u for u in users if u['id'] == current_user.id), None)
+    if user_record and user_record.get('google_id'):
+        flash("Your account is already linked to Google.", "info")
+        return redirect(url_for('settings'))
+    
+    # If not linked, proceed to Google
     redirect_uri = url_for('link_authorize_google', _external=True)
     return google.authorize_redirect(redirect_uri)
 
-@app.route('/link/google/callback')
+@app.route('/link/github')
+@login_required
+def link_github():
+    # MODIFICATION: Check if user is already linked
+    users = load_users()
+    user_record = next((u for u in users if u['id'] == current_user.id), None)
+    if user_record and user_record.get('github_id'):
+        flash("Your account is already linked to GitHub.", "info")
+        return redirect(url_for('settings'))
+        
+    # If not linked, proceed to GitHub
+    redirect_uri = url_for('link_authorize_github', _external=True)
+    return github_link.authorize_redirect(redirect_uri)
 @login_required
 def link_authorize_google():
     """Handles the callback after the user authorizes Google linking."""
@@ -1631,15 +1650,6 @@ def link_authorize_google():
         print(f"Error linking Google account: {e}")
         return redirect(url_for('settings')) # Redirect back to settings on failure
 
-@app.route('/link/github')
-@login_required
-def link_github():
-    """Initiates the process of linking a GitHub account to the current user."""
-    redirect_uri = url_for('link_authorize_github', _external=True)
-    return github.authorize_redirect(redirect_uri)
-
-@app.route('/link/github/callback')
-@login_required
 def link_authorize_github():
     """Handles the callback after the user authorizes GitHub linking."""
     try:
