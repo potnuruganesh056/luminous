@@ -4,7 +4,7 @@ import time
 import csv
 import threading
 from datetime import datetime, timedelta
-from flask import Flask, request, jsonify, render_template, redirect, url_for, session, flash
+from flask import Flask, request, jsonify, render_template, redirect, url_for, session, flash, send_file
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
 from authlib.integrations.flask_client import OAuth
 import paho.mqtt.client as mqtt
@@ -14,6 +14,9 @@ from datetime import timedelta
 import requests
 import base64
 import redis
+import statistics
+from collections import defaultdict
+import tempfile
 
 
 # --- Application Setup ---
@@ -1153,6 +1156,12 @@ def global_ai_signal():
         # ... (your MQTT logic) ...
         if mqtt_client:
             mqtt_client.publish(MQTT_TOPIC_COMMAND, f"global:all:ai:{int(human_detected)}")
+
+        # Line around global_ai_signal function - these variables are used but not defined:
+        action_str = "ON" if human_detected else "OFF"  # Add this line
+        updated_count = sum(1 for room in user_data.get('rooms', []) 
+                           for appliance in room.get('appliances', []) 
+                           if not appliance.get('locked', False))  # Add this line
         
         message = f"Global signal processed. Turned {action_str} {updated_count} unlocked appliances."
         return jsonify({"status": "success", "message": message}), 200
