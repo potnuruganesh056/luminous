@@ -97,6 +97,16 @@ github = oauth.register(
     client_kwargs={'scope': 'user:email'}
 )
 
+github_link = oauth.register(
+    name='github_link',
+    client_id=os.getenv('GITHUB_LINK_CLIENT_ID'),
+    client_secret=os.getenv('GITHUB_LINK_CLIENT_SECRET'),
+    access_token_url='https://github.com/login/oauth/access_token',
+    authorize_url='https://github.com/login/oauth/authorize',
+    api_base_url='https://api.github.com/',
+    client_kwargs={'scope': 'user:email'}
+)
+
 
 # --- DATABASE HELPER FUNCTIONS (High-Level) ---
 
@@ -106,6 +116,17 @@ class User(UserMixin):
         self.id = id
         self.username = username
         self.password_hash = password
+
+def get_user_data():
+    """Gets the current user's data from Redis."""
+    all_data = get_all_data_from_db()
+    return all_data.get(current_user.id, {})
+
+def save_user_data(user_data):
+    """Saves the current user's data to Redis."""
+    all_data = get_all_data_from_db()
+    all_data[current_user.id] = user_data
+    save_all_data_to_db(all_data)
 
 @login_manager.user_loader
 def load_user(user_id):
@@ -665,33 +686,27 @@ def logout():
 @app.route('/')
 @login_required
 def home():
-    user_data = get_user_data()
-    theme = user_data['user_settings']['theme']
+    theme = get_current_user_theme()
     return render_template('home.html', theme=theme)
 
 @app.route('/control.html')
 @login_required
 def control():
-    user_data = get_user_data()
-    theme = user_data['user_settings']['theme']
+    theme = get_current_user_theme()
     return render_template('control.html', theme=theme)
 
 @app.route('/settings.html')
 @login_required
 def settings():
-    user_data = get_user_data()
-    theme = user_data['user_settings']['theme']
+    theme = get_current_user_theme()
     return render_template('settings.html', theme=theme)
 
 @app.route('/contact.html')
 @login_required
 def contact():
-    user_data = get_user_data()
-    theme = user_data['user_settings']['theme']
+    theme = get_current_user_theme()
     return render_template('contact.html', theme=theme)
-
 # --- Backend API Endpoints ---
-# In app.py
 
 @app.route('/api/esp/check-in', methods=['GET'])
 def check_in():
@@ -960,37 +975,64 @@ def set_lock():
 def update_appliance_settings():
     try:
         req_data = request.get_json()
-        # ... (same logic as set_appliance_name, but also update relay_number and handle room moves) ...
-        # This function combines moving an appliance and updating its details.
-        
+        # 1. Input Validation
+        required_keys = ['room_id', 'appliance_id', 'name', 'relay_number', 'new_room_id']
+        if not all(key in req_data for key in required_keys):
+            return jsonify({"status": "error", "message": "Missing required fields."}), 400
+
+        # 2. Load data
         all_data = get_all_data_from_db()
         user_data = all_data.get(current_user.id)
+        if not user_data:
+            return jsonify({"status": "error", "message": "User data not found."}), 404
 
+        # 3. Find and Modify
         original_room = next((r for r in user_data['rooms'] if r['id'] == req_data['room_id']), None)
+        if not original_room:
+            return jsonify({"status": "error", "message": "Original room not found."}), 404
+        
         appliance = next((a for a in original_room['appliances'] if a['id'] == req_data['appliance_id']), None)
         if not appliance:
             return jsonify({"status": "error", "message": "Appliance not found."}), 404
         
-        # Update details
-        appliance['name'] = req_data['name']
-        appliance['relay_number'] = int(req_data['relay_number'])
+        appliance['name'] = str(req_data['name']) # Sanitize by casting to string
+        appliance['relay_number'] = int(req_data['relay_number']) # Sanitize by casting to int
 
-        # Handle moving to a new room
         if req_data['new_room_id'] != req_data['room_id']:
             target_room = next((r for r in user_data['rooms'] if r['id'] == req_data['new_room_id']), None)
             if not target_room:
                 return jsonify({"status": "error", "message": "Target room not found."}), 404
             
-            target_room['appliances'].append(appliance) # Add to new room
-            original_room['appliances'] = [a for a in original_room['appliances'] if a['id'] != req_data['appliance_id']] # Remove from old room
+            target_room['appliances'].append(appliance)
+            original_room['appliances'] = [a for a in original_room['appliances'] if a['id'] != req_data['appliance_id']]
 
+        # 4. Save data
         save_all_data_to_db(all_data)
         return jsonify({"status": "success", "message": "Appliance settings updated."}), 200
-    except (KeyError, TypeError):
-        return jsonify({"status": "error", "message": "Invalid request data."}), 400
+
+    except (ValueError, TypeError, KeyError) as e:
+        app.logger.warning(f"Invalid data received in update_appliance_settings: {e}")
+        return jsonify({"status": "error", "message": "Invalid data format."}), 400
     except Exception as e:
         app.logger.error(f"Error in update_appliance_settings: {e}")
-        return jsonify({"status": "error", "message": "An internal error occurred."}), 500
+        return jsonify({"status": "error", "message": "An internal server error occurred."}), 500
+
+# MODIFICATION: Add a one-time data migration function
+def migrate_json_to_redis():
+    """One-time script to migrate existing JSON data to Redis."""
+    print("Checking for data to migrate...")
+    # Check if Redis is empty but JSON files exist
+    if not redis_client.exists('users') and os.path.exists('users.json'):
+        with open('users.json', 'r') as f:
+            users_data = json.load(f)
+        save_all_users_to_db(users_data)
+        print(f"Migrated {len(users_data)} users from users.json to Redis.")
+
+    if not redis_client.exists('data') and os.path.exists('data.json'):
+        with open('data.json', 'r') as f:
+            app_data = json.load(f)
+        save_all_data_to_db(app_data)
+        print(f"Migrated data for {len(app_data)} users from data.json to Redis.")
 
 @app.route('/api/set-timer', methods=['POST'])
 @login_required
@@ -1788,7 +1830,11 @@ def error_page():
 # in your 'templates' directory.
 
 if __name__ == '__main__':
-    # generate_analytics_data()
+    with app.app_context():
+        # Run the migration once on startup if needed
+        migrate_json_to_redis()
+    
+    # run_mqtt_thread() # Uncomment when MQTT is needed
     run_mqtt_thread()
     port = int(os.environ.get('PORT', 5000))
     app.run(host='0.0.0.0', port=port)
