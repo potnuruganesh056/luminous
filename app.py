@@ -727,38 +727,42 @@ def check_in():
 @login_required
 def add_appliance():
     try:
-        req_data = request.get_json()
-        room_id = req_data['room_id']
-        appliance_name = req_data['name']
-        relay_number = int(req_data['relay_number'])
+        data = request.get_json()
+        # 1. Validate Input
+        if not all(k in data for k in ['room_id', 'name', 'relay_number']):
+            return jsonify({"status": "error", "message": "Missing required fields."}), 400
+        
+        room_id = data['room_id']
+        appliance_name = data['name']
+        relay_number = int(data['relay_number'])
 
+        # 2. Load Data
         all_data = get_all_data_from_db()
         user_data = all_data.get(current_user.id)
         if not user_data:
             return jsonify({"status": "error", "message": "User data not found."}), 404
 
+        # 3. Find & Modify
         room = next((r for r in user_data.get('rooms', []) if r['id'] == room_id), None)
         if not room:
             return jsonify({"status": "error", "message": "Room not found."}), 404
             
-        new_appliance_id = str(int(time.time() * 1000)) # Use timestamp for a more unique ID
+        new_appliance_id = str(int(time.time() * 1000)) # Unique ID based on timestamp
 
         room['appliances'].append({
-            "id": new_appliance_id,
-            "name": appliance_name,
-            "state": False,
-            "locked": False,
-            "timer": None,
-            "relay_number": relay_number
+            "id": new_appliance_id, "name": appliance_name, "state": False,
+            "locked": False, "timer": None, "relay_number": relay_number
         })
+        
+        # 4. Save Data
         save_all_data_to_db(all_data)
         
         return jsonify({"status": "success", "appliance_id": new_appliance_id}), 200
-    except (KeyError, TypeError):
-        return jsonify({"status": "error", "message": "Invalid request data."}), 400
+    except (KeyError, TypeError, ValueError) as e:
+        return jsonify({"status": "error", "message": f"Invalid request data: {e}"}), 400
     except Exception as e:
         app.logger.error(f"Error in add_appliance: {e}")
-        return jsonify({"status": "error", "message": "An internal error occurred."}), 500
+        return jsonify({"status": "error", "message": "An internal server error occurred."}), 500
 
 @app.route('/api/get-rooms-and-appliances', methods=['GET'])
 @login_required
@@ -820,7 +824,7 @@ def delete_room():
         return jsonify({"status": "error", "message": "Missing room_id."}), 400
     except Exception as e:
         app.logger.error(f"Error in delete_room: {e}")
-        return jsonify({"status": "error", "message": "An internal error occurred."}), 500
+        return jsonify({"status": "error", "message": "An internal server error occurred."}), 500
 
 @app.route('/api/add-room', methods=['POST'])
 @login_required
@@ -840,9 +844,9 @@ def add_room():
 @login_required
 def delete_appliance():
     try:
-        req_data = request.json
-        room_id = req_data['room_id']
-        appliance_id = req_data['appliance_id']
+        data = request.get_json()
+        room_id = data['room_id']
+        appliance_id = data['appliance_id']
 
         all_data = get_all_data_from_db()
         user_data = all_data.get(current_user.id)
@@ -866,7 +870,7 @@ def delete_appliance():
     except Exception as e:
         app.logger.error(f"Error in delete_appliance: {e}")
         return jsonify({"status": "error", "message": "An internal error occurred."}), 500
-
+        
 @app.route('/api/set-appliance-state', methods=['POST'])
 @login_required
 def set_appliance_state():
@@ -921,14 +925,17 @@ def set_appliance_state():
 @login_required
 def set_appliance_name():
     try:
-        req_data = request.json
-        room_id = req_data['room_id']
-        appliance_id = req_data['appliance_id']
-        name = req_data['name']
+        data = request.json
+        room_id = data['room_id']
+        appliance_id = data['appliance_id']
+        name = data['name']
 
         all_data = get_all_data_from_db()
         user_data = all_data.get(current_user.id)
         room = next((r for r in user_data.get('rooms', []) if r['id'] == room_id), None)
+        if not room:
+            return jsonify({"status": "error", "message": "Room not found."}), 404
+
         appliance = next((a for a in room.get('appliances', []) if a['id'] == appliance_id), None)
         if not appliance:
             return jsonify({"status": "error", "message": "Appliance not found."}), 404
@@ -936,7 +943,7 @@ def set_appliance_name():
         appliance['name'] = name
         save_all_data_to_db(all_data)
         return jsonify({"status": "success", "message": "Name updated."}), 200
-    except (KeyError, TypeError):
+    except KeyError:
         return jsonify({"status": "error", "message": "Invalid request data."}), 400
     except Exception as e:
         app.logger.error(f"Error in set_appliance_name: {e}")
@@ -946,25 +953,26 @@ def set_appliance_name():
 @login_required
 def set_lock():
     try:
-        req_data = request.json
-        appliance_id = req_data['appliance_id']
-        room_id = req_data['room_id']
-        locked = req_data['locked']
+        data = request.json
+        appliance_id = data['appliance_id']
+        room_id = data['room_id']
+        locked = data['locked']
         
         all_data = get_all_data_from_db()
         user_data = all_data.get(current_user.id)
         room = next((r for r in user_data.get('rooms', []) if r['id'] == room_id), None)
+        if not room:
+            return jsonify({"status": "error", "message": "Room not found."}), 404
+
         appliance = next((a for a in room.get('appliances', []) if a['id'] == appliance_id), None)
         if not appliance:
             return jsonify({"status": "error", "message": "Appliance not found."}), 404
 
-        appliance['locked'] = locked
+        appliance['locked'] = bool(locked)
         save_all_data_to_db(all_data)
         
-        # ... MQTT logic if needed ...
-
         return jsonify({"status": "success", "message": "Lock state updated."}), 200
-    except (KeyError, TypeError):
+    except KeyError:
         return jsonify({"status": "error", "message": "Invalid request data."}), 400
     except Exception as e:
         app.logger.error(f"Error in set_lock: {e}")
@@ -1038,14 +1046,17 @@ def migrate_json_to_redis():
 @login_required
 def set_timer():
     try:
-        req_data = request.get_json()
-        room_id = req_data['room_id']
-        appliance_id = req_data['appliance_id']
-        timer_timestamp = req_data.get('timer')
+        data = request.json
+        room_id = data['room_id']
+        appliance_id = data['appliance_id']
+        timer_timestamp = data.get('timer') # Can be null
         
         all_data = get_all_data_from_db()
         user_data = all_data.get(current_user.id)
         room = next((r for r in user_data.get('rooms', []) if r['id'] == room_id), None)
+        if not room:
+            return jsonify({"status": "error", "message": "Room not found."}), 404
+
         appliance = next((a for a in room.get('appliances', []) if a['id'] == appliance_id), None)
         if not appliance:
             return jsonify({"status": "error", "message": "Appliance not found."}), 404
@@ -1056,11 +1067,13 @@ def set_timer():
         
         save_all_data_to_db(all_data)
         return jsonify({"status": "success", "message": "Timer set."}), 200
-    except (KeyError, TypeError):
+    except KeyError:
         return jsonify({"status": "error", "message": "Invalid request data."}), 400
     except Exception as e:
         app.logger.error(f"Error in set_timer: {e}")
         return jsonify({"status": "error", "message": "An internal error occurred."}), 500
+
+
 @app.route('/api/save-room-order', methods=['POST'])
 @login_required
 def save_room_order():
@@ -1069,13 +1082,15 @@ def save_room_order():
         
         all_data = get_all_data_from_db()
         user_data = all_data.get(current_user.id)
+        if not user_data:
+            return jsonify({"status": "error", "message": "User data not found."}), 404
         
         room_map = {room['id']: room for room in user_data.get('rooms', [])}
         user_data['rooms'] = [room_map[id] for id in new_order_ids if id in room_map]
         
         save_all_data_to_db(all_data)
         return jsonify({"status": "success"}), 200
-    except (KeyError, TypeError):
+    except KeyError:
         return jsonify({"status": "error", "message": "Invalid order data."}), 400
     except Exception as e:
         app.logger.error(f"Error in save_room_order: {e}")
@@ -1085,12 +1100,15 @@ def save_room_order():
 @login_required
 def save_appliance_order():
     try:
-        req_data = request.json
-        room_id = req_data['room_id']
-        new_order_ids = req_data['order']
+        data = request.json
+        room_id = data['room_id']
+        new_order_ids = data['order']
         
         all_data = get_all_data_from_db()
         user_data = all_data.get(current_user.id)
+        if not user_data:
+            return jsonify({"status": "error", "message": "User data not found."}), 404
+
         room = next((r for r in user_data.get('rooms', []) if r['id'] == room_id), None)
         if not room:
             return jsonify({"status": "error", "message": "Room not found."}), 404
@@ -1100,7 +1118,7 @@ def save_appliance_order():
         
         save_all_data_to_db(all_data)
         return jsonify({"status": "success"}), 200
-    except (KeyError, TypeError):
+    except KeyError:
         return jsonify({"status": "error", "message": "Invalid order data."}), 400
     except Exception as e:
         app.logger.error(f"Error in save_appliance_order: {e}")
