@@ -246,7 +246,9 @@
                 <label for="new-appliance-name" class="block text-text-card-foreground mb-2">Appliance Name:</label>
                 <input type="text" id="new-appliance-name" name="name" class="w-full p-2 border rounded-md bg-gray-100 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100 focus:outline-none" required>
                 <label for="new-appliance-relay" class="block text-text-card-foreground mb-2 mt-4">Relay Number (1-4):</label>
-                <input type="number" id="new-appliance-relay" name="relay" min="1" max="4" class="w-full p-2 border rounded-md bg-gray-100 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100 focus:outline-none" required>
+                <select id="new-appliance-relay" name="relay" class="w-full p-2 border rounded-md bg-gray-100 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100 focus:outline-none" required>
+                    <option value="" disabled selected>Select a relay...</option>
+                </select>
                 <div class="flex justify-end space-x-4 mt-6">
                     <button type="button" id="cancel-appliance-btn" class="px-4 py-2 bg-gray-300 dark:bg-gray-700 dark:text-gray-200 rounded-lg hover:bg-gray-400 dark:hover:bg-gray-600 transition-colors">Cancel</button>
                     <button type="submit" class="px-4 py-2 bg-secondary-accent text-white rounded-lg hover:bg-opacity-80 transition-colors">Add</button>
@@ -895,74 +897,89 @@
     };
         
     
-    const toggleMonitoring = async (roomId) => {
-        const monitor = activeMonitors.get(roomId);
-        const room = allRoomsData.find(r => r.id === roomId);
-        if (!room) return;
+    const toggleMonitoring = async (scope) => {
+        // If the model isn't ready yet, queue the action and start loading it.
+        if (!modelLoaded) {
+            pendingGlobalAction = scope; // Store what the user wanted to do
+            showNotification('AI Model is loading, please wait...', 'on');
+            loadModel();
+            return;
+        }
     
+        const isGlobal = scope === 'global';
+        const monitor = activeMonitors.get(scope);
+        
         // --- LOGIC TO STOP A MONITORING SESSION ---
         if (monitor && monitor.isRunning) {
             monitor.isRunning = false;
             if (monitor.intervalId) clearTimeout(monitor.intervalId);
             if (monitor.stream) monitor.stream.getTracks().forEach(track => track.stop());
-            if (monitor.videoElement) monitor.videoElement.remove(); // Clean up the DOM element
+            if (monitor.videoElement) monitor.videoElement.remove();
+            activeMonitors.delete(scope);
     
-            activeMonitors.delete(roomId);
-            console.log(`Monitoring stopped for room: ${room.name}`);
-            showNotification(`AI monitoring stopped for ${room.name}.`, 'on');
-            
-            // Update backend and UI
-            await fetch('/api/update-room-settings', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ room_id: roomId, ai_control: false })
+            const name = isGlobal ? 'Global' : allRoomsData.find(r => r.id === scope)?.name || 'Room';
+            showNotification(`AI monitoring stopped for ${name}.`, 'on');
+    
+            // Update backend state
+            const endpoint = isGlobal ? '/api/set-global-ai-control' : '/api/update-room-settings';
+            const body = isGlobal ? { state: false } : { room_id: scope, ai_control: false };
+            await fetch(endpoint, {
+                method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body)
             });
-            renderAppliances(room.appliances, room.name);
+            
+            fetchRoomsAndAppliances(); // Refresh the entire UI state
             return;
         }
     
         // --- LOGIC TO START A NEW MONITORING SESSION ---
         try {
-            if (!model) {
-                await loadModel();
-                if (!model) return;
+            // Prevent conflicts between global and per-room monitoring
+            if (isGlobal && activeMonitors.size > 0) {
+                showNotification('Please stop all active room monitors before starting global monitoring.', 'warning');
+                return;
+            }
+            if (!isGlobal && activeMonitors.has('global')) {
+                showNotification('Global monitoring is active. Stop it to control individual rooms.', 'warning');
+                return;
             }
     
+            // Get camera stream and prepare video element
             const stream = await navigator.mediaDevices.getUserMedia({ video: true });
             const videoElement = document.createElement('video');
             videoElement.srcObject = stream;
-            videoElement.style.display = 'none'; // Keep it hidden
+            videoElement.style.display = 'none';
             document.body.appendChild(videoElement);
     
-            await new Promise(resolve => videoElement.onloadedmetadata = resolve);
+            await new Promise((resolve, reject) => {
+                videoElement.onloadedmetadata = resolve;
+                setTimeout(() => reject(new Error("Video load timeout")), 5000);
+            });
             await videoElement.play();
     
+            // Create a new monitor object and add it to our state manager
             const newMonitor = {
-                roomId: roomId,
-                stream: stream,
-                videoElement: videoElement,
-                intervalId: null, // Will be set by detectHumans
-                isRunning: true
+                stream, videoElement, isRunning: true,
+                intervalId: null, lastEmailTime: null
             };
+            activeMonitors.set(scope, newMonitor);
     
-            activeMonitors.set(roomId, newMonitor);
-            console.log(`Monitoring started for room: ${room.name}`);
-            showNotification(`AI monitoring started for ${room.name}.`, 'on');
-    
-            // Update backend and UI
-            await fetch('/api/update-room-settings', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ room_id: roomId, ai_control: true })
-            });
-            renderAppliances(room.appliances, room.name);
+            const name = isGlobal ? 'Global' : allRoomsData.find(r => r.id === scope)?.name || 'Room';
+            showNotification(`AI monitoring started for ${name}.`, 'on');
             
-            // Start the independent detection loop for this room
-            detectHumans(roomId);
+            // Update backend state
+            const endpoint = isGlobal ? '/api/set-global-ai-control' : '/api/update-room-settings';
+            const body = isGlobal ? { state: true } : { room_id: scope, ai_control: true };
+            await fetch(endpoint, {
+                method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body)
+            });
     
+            detectHumans(scope); // Start the detection loop for this specific session
+            fetchRoomsAndAppliances(); // Refresh the entire UI state
+            
         } catch (err) {
-            console.error(`Failed to start monitoring for room ${roomId}:`, err);
-            showNotification(`Failed to start monitoring for ${room.name}. Check permissions.`, 'off');
+            const name = isGlobal ? 'Global' : allRoomsData.find(r => r.id === scope)?.name || 'Room';
+            showNotification(`Failed to start monitoring for ${name}. Check camera permissions.`, 'off');
+            console.error(`Monitoring Error for scope "${scope}":`, err);
         }
     };
     
