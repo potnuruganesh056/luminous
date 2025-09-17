@@ -2120,52 +2120,52 @@
         });
     };
 
-    // --- QR SCANNER LOGIC ---
+    // --- Existing variables (currentRoomId, allRoomsData, etc.) remain here ---
+
+    // --- NEW: QR SCANNER LOGIC ---
     const qrModal = document.getElementById('qr-scanner-modal');
     const html5QrCode = new Html5Qrcode("qr-reader");
-    
+
     const openQrScanner = (roomId) => {
         qrModal.classList.remove('hidden');
         const config = { fps: 10, qrbox: { width: 250, height: 250 } };
         
-        // The success callback
         const onQrSuccess = (decodedText, decodedResult) => {
             html5QrCode.stop().then(() => {
                 qrModal.classList.add('hidden');
                 handleQrCodeData(decodedText, roomId);
             }).catch(err => console.error("Failed to stop QR scanner.", err));
         };
-    
         html5QrCode.start({ facingMode: "environment" }, config, onQrSuccess);
     };
-    
+
     const closeQrScanner = () => {
-        html5QrCode.stop().catch(err => {}); // Ignore error if not running
+        html5QrCode.stop().catch(err => {});
         qrModal.classList.add('hidden');
     };
-    
+
     const decryptQrData = (encryptedText) => {
         // !! IMPORTANT !!
-        // This is a placeholder. You must replace this with your actual
-        // decryption logic (e.g., using CryptoJS or a similar library).
+        // This is a placeholder. You must replace this with your actual decryption logic.
         try {
-            // Example: If data is just Base64 encoded JSON
+            // This example assumes the QR code contains Base64 encoded JSON.
             const jsonString = atob(encryptedText);
             return JSON.parse(jsonString);
         } catch (e) {
-            console.error("Decryption failed:", e);
+            console.error("Decryption/Parsing failed:", e);
             return null;
         }
     };
-    
+
     const handleQrCodeData = async (qrText, roomId) => {
         const decryptedData = decryptQrData(qrText);
-    
-        if (!decryptedData || !decryptedData.board_number) {
-            showNotification('Invalid QR Code format.', 'off');
+
+        // Validate using the new field name 'board_id'
+        if (!decryptedData || !decryptedData.board_id) {
+            showNotification('Invalid or unrecognized QR Code format.', 'off');
             return;
         }
-    
+
         try {
             const response = await fetch('/api/add-board', {
                 method: 'POST',
@@ -2175,60 +2175,61 @@
             const result = await response.json();
             if (response.ok) {
                 showNotification(result.message, 'on');
-                fetchRoomsAndAppliances(); // Refresh data
+                fetchRoomsAndAppliances(); // Refresh UI
             } else {
                 showNotification(`Error: ${result.message}`, 'off');
             }
         } catch (error) {
-            showNotification('Failed to add board.', 'off');
+            showNotification('Failed to add board to the server.', 'off');
         }
     };
-    
-    // --- Attach Event Listeners ---
+
+    // --- MODIFIED: Update appliance creation flow ---
+    const addApplianceBtn = document.getElementById('add-appliance-btn');
+
+    addApplianceBtn.addEventListener('click', async () => {
+        document.getElementById('add-appliance-modal').classList.remove('hidden');
+        try {
+            const response = await fetch(`/api/available-relays/${currentRoomId}`);
+            if (!response.ok) throw new Error('Failed to fetch relays');
+            const availableRelays = await response.json();
+            
+            // Assumes your "relay number" input in the modal is now a <select>
+            // with id="new-appliance-relay"
+            const relaySelect = document.getElementById('new-appliance-relay');
+            relaySelect.innerHTML = '<option value="" disabled selected>Select an available relay</option>';
+
+            if (availableRelays.length === 0) {
+                relaySelect.innerHTML += '<option value="" disabled>No available relays in this room</option>';
+                return;
+            }
+
+            availableRelays.forEach(board => {
+                const optgroup = document.createElement('optgroup');
+                optgroup.label = `Board ${board.board_id.substring(0, 6)}...`;
+                board.relays.forEach(relay => {
+                    const option = document.createElement('option');
+                    // The value will be in the format "board_id-relay_id"
+                    option.value = `${board.board_id}-${relay.id}`;
+                    option.textContent = relay.name;
+                    optgroup.appendChild(option);
+                });
+                relaySelect.appendChild(optgroup);
+            });
+
+        } catch (error) {
+            console.error("Failed to fetch available relays", error);
+            showNotification('Could not load available relays.', 'off');
+        }
+    });
+
+    // --- Attach Event Listeners for QR Modal ---
     document.getElementById('add-board-btn').addEventListener('click', () => {
         if (currentRoomId) {
             openQrScanner(currentRoomId);
         }
     });
     document.getElementById('close-scanner-btn').addEventListener('click', closeQrScanner);
-    
-    // --- Update Add Appliance Modal ---
-    const addApplianceBtn = document.getElementById('add-appliance-btn');
-    const originalAddApplianceHTML = addApplianceBtn.innerHTML;
-    
-    addApplianceBtn.addEventListener('click', async () => {
-        // When opening the 'Add Appliance' modal, fetch available relays
-        try {
-            const response = await fetch(`/api/available-relays/${currentRoomId}`);
-            const availableRelays = await response.json();
-            
-            const relaySelect = document.getElementById('new-appliance-relay'); // You'll need to change your number input to a <select>
-            relaySelect.innerHTML = '<option value="">Select a Relay</option>';
-    
-            if (availableRelays.length === 0) {
-                relaySelect.innerHTML = '<option value="">No available relays in this room</option>';
-                return;
-            }
-    
-            availableRelays.forEach(board => {
-                const optgroup = document.createElement('optgroup');
-                optgroup.label = `Board ${board.board_id}`;
-                board.relays.forEach(relay => {
-                    const option = document.createElement('option');
-                    option.value = `${board.board_id}-${relay.id}`; // e.g., "A1B2C3D4-R1"
-                    option.textContent = relay.name;
-                    optgroup.appendChild(option);
-                });
-                relaySelect.appendChild(optgroup);
-            });
-    
-        } catch (error) {
-            console.error("Failed to fetch available relays", error);
-        }
-    });
-    
-    // You will also need to update the form handler for adding an appliance
-    // to send the combined board_id-relay_id value.
 
     window.addEventListener('DOMContentLoaded', () => {
         fetchRoomsAndAppliances();
