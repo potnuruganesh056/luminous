@@ -1542,29 +1542,48 @@ def esp_checkin(board_id):
 def add_appliance():
     try:
         data = request.get_json()
+        
+        # 1. MODIFICATION: Validate for 'relay_info' instead of 'relay_number'
         if not all(k in data for k in ['room_id', 'name', 'relay_info']):
             return jsonify({"status": "error", "message": "Missing required fields."}), 400
         
-        # relay_info is expected in "board_id-relay_id" format
-        board_id, relay_id = data['relay_info'].split('-')
+        # 2. MODIFICATION: Parse the combined board and relay information
+        room_id = data['room_id']
+        appliance_name = data['name']
+        board_id, relay_id = data['relay_info'].split('-') # This splits "board_id-relay_id"
 
+        # 3. Load Data from Redis
         all_data = get_all_data_from_db()
         user_data = all_data.get(current_user.id)
-        room = next((r for r in user_data.get('rooms', []) if r['id'] == data['room_id']), None)
+        if not user_data:
+            return jsonify({"status": "error", "message": "User data not found."}), 404
+
+        # 4. Find the correct room to add the appliance to
+        room = next((r for r in user_data.get('rooms', []) if r['id'] == room_id), None)
         if not room:
             return jsonify({"status": "error", "message": "Room not found."}), 404
             
-        new_appliance_id = str(int(time.time() * 1000))
+        new_appliance_id = str(int(time.time() * 1000)) # Unique ID based on timestamp
 
+        # 5. MODIFICATION: Create the new appliance object with board_id and relay_id
         room['appliances'].append({
-            "id": new_appliance_id, "name": data['name'], "state": False,
-            "locked": False, "timer": None, 
-            "board_id": board_id, "relay_id": relay_id
+            "id": new_appliance_id,
+            "name": appliance_name,
+            "state": False,
+            "locked": False,
+            "timer": None,
+            "board_id": board_id, # New field
+            "relay_id": relay_id   # New field
         })
+        
+        # 6. Save the updated data back to Redis
         save_all_data_to_db(all_data)
         
         return jsonify({"status": "success", "appliance_id": new_appliance_id}), 200
-    except (KeyError, TypeError, ValueError):
+        
+    except (KeyError, TypeError, ValueError) as e:
+        # ValueError will catch a malformed 'relay_info' string if it doesn't contain a '-'
+        app.logger.warning(f"Invalid data received in add_appliance: {e}")
         return jsonify({"status": "error", "message": "Invalid request data."}), 400
     except Exception as e:
         app.logger.error(f"Error in add_appliance: {e}")
