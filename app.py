@@ -194,6 +194,13 @@ def save_all_data_to_db(data_dict):
     """Encodes and saves the 'data' dictionary to Redis."""
     redis_client.set('data', json.dumps(data_dict))
 
+def get_all_boards_from_db():
+    boards_json = redis_client.get('boards')
+    return json.loads(boards_json) if boards_json else {}
+
+def save_all_boards_to_db(boards_dict):
+    redis_client.set('boards', json.dumps(boards_dict))
+
 
 # In app.py, add this new function
 
@@ -725,47 +732,6 @@ def check_in():
         return jsonify(last_command), 200
     
     return jsonify({}), 200
-    
-@app.route('/api/add-appliance', methods=['POST'])
-@login_required
-def add_appliance():
-    try:
-        data = request.get_json()
-        # 1. Validate Input
-        if not all(k in data for k in ['room_id', 'name', 'relay_number']):
-            return jsonify({"status": "error", "message": "Missing required fields."}), 400
-        
-        room_id = data['room_id']
-        appliance_name = data['name']
-        relay_number = int(data['relay_number'])
-
-        # 2. Load Data
-        all_data = get_all_data_from_db()
-        user_data = all_data.get(current_user.id)
-        if not user_data:
-            return jsonify({"status": "error", "message": "User data not found."}), 404
-
-        # 3. Find & Modify
-        room = next((r for r in user_data.get('rooms', []) if r['id'] == room_id), None)
-        if not room:
-            return jsonify({"status": "error", "message": "Room not found."}), 404
-            
-        new_appliance_id = str(int(time.time() * 1000)) # Unique ID based on timestamp
-
-        room['appliances'].append({
-            "id": new_appliance_id, "name": appliance_name, "state": False,
-            "locked": False, "timer": None, "relay_number": relay_number
-        })
-        
-        # 4. Save Data
-        save_all_data_to_db(all_data)
-        
-        return jsonify({"status": "success", "appliance_id": new_appliance_id}), 200
-    except (KeyError, TypeError, ValueError) as e:
-        return jsonify({"status": "error", "message": f"Invalid request data: {e}"}), 400
-    except Exception as e:
-        app.logger.error(f"Error in add_appliance: {e}")
-        return jsonify({"status": "error", "message": "An internal server error occurred."}), 500
 
 @app.route('/api/get-rooms-and-appliances', methods=['GET'])
 @login_required
@@ -1471,6 +1437,139 @@ def get_user_settings():
     except Exception as e:
         print(f"Error in /api/get-user-settings: {e}")
         return jsonify({"status": "error", "message": "Could not load user settings."}), 500
+
+@app.route('/api/add-board', methods=['POST'])
+@login_required
+def add_board():
+    try:
+        data = request.get_json()
+        if not all(k in data for k in ['qr_data', 'room_id']):
+            return jsonify({"status": "error", "message": "Missing required data."}), 400
+
+        board_info = data['qr_data']
+        board_id = board_info.get('board_id') # Using the correct key from your JSON
+
+        all_boards = get_all_boards_from_db()
+
+        if board_id in all_boards and all_boards[board_id].get('owner_id') not in [None, current_user.id]:
+            return jsonify({"status": "error", "message": "This board is already registered to another user."}), 409
+
+        # Create or update the board with all details from the QR code
+        all_boards[board_id] = {
+            "build_number": board_info.get('build_number'),
+            "number_of_relays": board_info.get('number_of_relays'),
+            "version_number": board_info.get('version_number'),
+            "relay_ids": board_info.get('relay_ids'),
+            "additional_features": board_info.get('additional_features'),
+            "owner_id": current_user.id # Claim ownership
+        }
+        
+        all_data = get_all_data_from_db()
+        user_data = all_data.get(current_user.id)
+        room = next((r for r in user_data['rooms'] if r['id'] == data['room_id']), None)
+        if not room:
+            return jsonify({"status": "error", "message": "Room not found."}), 404
+        
+        if 'board_ids' not in room:
+            room['board_ids'] = []
+        if board_id not in room['board_ids']:
+            room['board_ids'].append(board_id)
+
+        save_all_boards_to_db(all_boards)
+        save_all_data_to_db(all_data)
+        
+        return jsonify({"status": "success", "message": f"Board {board_id} successfully added to {room['name']}."})
+
+    except Exception as e:
+        app.logger.error(f"Error in add_board: {e}")
+        return jsonify({"status": "error", "message": "An internal server error occurred."}), 500
+
+@app.route('/api/available-relays/<room_id>', methods=['GET'])
+@login_required
+def get_available_relays(room_id):
+    all_data = get_all_data_from_db()
+    user_data = all_data.get(current_user.id, {})
+    room = next((r for r in user_data.get('rooms', []) if r['id'] == room_id), None)
+    if not room:
+        return jsonify({"error": "Room not found"}), 404
+    
+    all_boards = get_all_boards_from_db()
+    boards_in_room = {board_id: all_boards.get(board_id) for board_id in room.get('board_ids', []) if board_id in all_boards}
+    
+    occupied_relays = {f"{app.get('board_id')}-{app.get('relay_id')}" for app in room.get('appliances', [])}
+
+    available_relays = []
+    for board_id, board_details in boards_in_room.items():
+        if board_details:
+            relays = [
+                {'id': relay_id, 'name': f"Relay {relay_id[:4]}... on Board {board_id[:4]}..."}
+                for relay_id in board_details.get('relay_ids', [])
+                if f"{board_id}-{relay_id}" not in occupied_relays
+            ]
+            if relays:
+                available_relays.append({'board_id': board_id, 'relays': relays})
+    
+    return jsonify(available_relays)
+
+# --- MODIFIED: Appliance and ESP Check-in API ---
+
+@app.route('/<board_id>/esp/checkin', methods=['GET'])
+def esp_checkin(board_id):
+    all_boards = get_all_boards_from_db()
+    board = all_boards.get(board_id)
+
+    if not board or not board.get('owner_id'):
+        return jsonify({"error": "Unregistered board"}), 403
+
+    owner_id = board['owner_id']
+    all_data = get_all_data_from_db()
+    user_data = all_data.get(owner_id)
+
+    # Find commands specifically for this board's relays
+    commands_for_board = []
+    for room in user_data.get('rooms', []):
+        for app in room.get('appliances', []):
+            if app.get('board_id') == board_id:
+                commands_for_board.append({
+                    'relay_id': app['relay_id'],
+                    'state': int(app['state'])
+                })
+
+    return jsonify({"commands": commands_for_board})
+
+@app.route('/api/add-appliance', methods=['POST'])
+@login_required
+def add_appliance():
+    try:
+        data = request.get_json()
+        if not all(k in data for k in ['room_id', 'name', 'relay_info']):
+            return jsonify({"status": "error", "message": "Missing required fields."}), 400
+        
+        # relay_info is expected in "board_id-relay_id" format
+        board_id, relay_id = data['relay_info'].split('-')
+
+        all_data = get_all_data_from_db()
+        user_data = all_data.get(current_user.id)
+        room = next((r for r in user_data.get('rooms', []) if r['id'] == data['room_id']), None)
+        if not room:
+            return jsonify({"status": "error", "message": "Room not found."}), 404
+            
+        new_appliance_id = str(int(time.time() * 1000))
+
+        room['appliances'].append({
+            "id": new_appliance_id, "name": data['name'], "state": False,
+            "locked": False, "timer": None, 
+            "board_id": board_id, "relay_id": relay_id
+        })
+        save_all_data_to_db(all_data)
+        
+        return jsonify({"status": "success", "appliance_id": new_appliance_id}), 200
+    except (KeyError, TypeError, ValueError):
+        return jsonify({"status": "error", "message": "Invalid request data."}), 400
+    except Exception as e:
+        app.logger.error(f"Error in add_appliance: {e}")
+        return jsonify({"status": "error", "message": "An internal server error occurred."}), 500
+
         
 @app.route('/api/set-user-settings', methods=['POST'])
 @login_required
