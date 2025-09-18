@@ -17,8 +17,9 @@
         }
         .nav-link:hover { background-color: #374151; }
         .nav-link.active { background-color: #4f46e5; color: white; }
-        th.sortable { cursor: pointer; }
+        th.sortable { cursor: pointer; user-select: none; }
         th.sortable:hover { background-color: #374151; }
+        th.sortable::after { content: ' \2195'; color: #6b7280; } /* Up-down arrow */
     </style>
 </head>
 <body class="bg-gray-900 text-gray-100 font-sans">
@@ -55,7 +56,7 @@
             
             <div id="users-view" class="view-content hidden">
                 <h2 class="text-4xl font-bold mb-6">User Management</h2>
-                <div class="bg-gray-800 p-6 rounded-lg shadow-lg">
+                <div class="bg-gray-800 p-6 rounded-lg shadow-lg overflow-x-auto">
                    <table class="w-full text-left" id="user-table">
                        <thead>
                            <tr class="border-b border-gray-700">
@@ -73,7 +74,7 @@
 
             <div id="boards-view" class="view-content hidden">
                 <h2 class="text-4xl font-bold mb-6">Board Management</h2>
-                <div class="bg-gray-800 p-6 rounded-lg shadow-lg">
+                <div class="bg-gray-800 p-6 rounded-lg shadow-lg overflow-x-auto">
                    <table class="w-full text-left" id="board-table">
                        <thead>
                            <tr class="border-b border-gray-700">
@@ -146,6 +147,8 @@
                     element: document.getElementById('qr-canvas'),
                     value: result.qr_data, size: 200
                 });
+            } else {
+                alert(`Error: ${result.message}`);
             }
             btn.textContent = 'Generate';
             btn.disabled = false;
@@ -153,29 +156,33 @@
 
         // --- USER MANAGEMENT ---
         async function loadUsers() {
-            const response = await fetch('/api/admin/users');
-            const users = await response.json();
             const tableBody = document.getElementById('user-table-body');
             tableBody.innerHTML = '<tr><td colspan="5" class="p-4 text-center">Loading users...</td></tr>';
-            if (users.length === 0) {
-                tableBody.innerHTML = '<tr><td colspan="5" class="p-4 text-center">No users found.</td></tr>';
-                return;
+            try {
+                const response = await fetch('/api/admin/users');
+                const users = await response.json();
+                if (users.length === 0) {
+                    tableBody.innerHTML = '<tr><td colspan="5" class="p-4 text-center">No users found.</td></tr>';
+                    return;
+                }
+                tableBody.innerHTML = '';
+                users.forEach(user => {
+                    const row = document.createElement('tr');
+                    row.className = 'border-b border-gray-700 hover:bg-gray-700';
+                    row.innerHTML = `
+                        <td class="p-2 font-mono text-sm">${user.id}</td>
+                        <td class="p-2">${user.username}</td>
+                        <td class="p-2">${user.email}</td>
+                        <td class="p-2">${user.is_admin ? '<span class="px-2 py-1 bg-indigo-500 text-xs rounded-full">Admin</span>' : '<span class="px-2 py-1 bg-gray-600 text-xs rounded-full">User</span>'}</td>
+                        <td class="p-2">
+                            ${!user.is_admin ? `<button onclick="deleteUser('${user.id}')" class="text-red-400 hover:text-red-600 font-semibold">Delete</button>` : ''}
+                        </td>
+                    `;
+                    tableBody.appendChild(row);
+                });
+            } catch (error) {
+                 tableBody.innerHTML = '<tr><td colspan="5" class="p-4 text-center text-red-400">Failed to load users.</td></tr>';
             }
-            tableBody.innerHTML = '';
-            users.forEach(user => {
-                const row = document.createElement('tr');
-                row.className = 'border-b border-gray-700 hover:bg-gray-700';
-                row.innerHTML = `
-                    <td class="p-2 font-mono text-sm">${user.id}</td>
-                    <td class="p-2">${user.username}</td>
-                    <td class="p-2">${user.email}</td>
-                    <td class="p-2">${user.is_admin ? '<span class="px-2 py-1 bg-indigo-500 text-xs rounded-full">Admin</span>' : '<span class="px-2 py-1 bg-gray-600 text-xs rounded-full">User</span>'}</td>
-                    <td class="p-2">
-                        ${!user.is_admin ? `<button onclick="deleteUser('${user.id}')" class="text-red-400 hover:text-red-600 font-semibold">Delete</button>` : ''}
-                    </td>
-                `;
-                tableBody.appendChild(row);
-            });
         }
         
         async function deleteUser(userId) {
@@ -193,28 +200,32 @@
 
         // --- BOARD MANAGEMENT ---
         async function loadBoards() {
-            const response = await fetch('/api/admin/boards');
-            const boards = await response.json();
             const tableBody = document.getElementById('board-table-body');
             tableBody.innerHTML = '<tr><td colspan="4" class="p-4 text-center">Loading boards...</td></tr>';
-            if (boards.length === 0) {
-                tableBody.innerHTML = '<tr><td colspan="4" class="p-4 text-center">No boards have been generated.</td></tr>';
-                return;
+            try {
+                const response = await fetch('/api/admin/boards');
+                const boards = await response.json();
+                if (boards.length === 0) {
+                    tableBody.innerHTML = '<tr><td colspan="4" class="p-4 text-center">No boards have been generated.</td></tr>';
+                    return;
+                }
+                tableBody.innerHTML = '';
+                boards.forEach(board => {
+                    const row = document.createElement('tr');
+                    row.className = 'border-b border-gray-700 hover:bg-gray-700';
+                    row.innerHTML = `
+                        <td class="p-2 font-mono text-sm">${board.board_id}</td>
+                        <td class="p-2 text-center">${board.number_of_relays}</td>
+                        <td class="p-2">${board.version_number}</td>
+                        <td class="p-2">
+                            <button onclick="deleteBoard('${board.board_id}')" class="text-red-400 hover:text-red-600 font-semibold">Delete</button>
+                        </td>
+                    `;
+                    tableBody.appendChild(row);
+                });
+            } catch (error) {
+                tableBody.innerHTML = '<tr><td colspan="4" class="p-4 text-center text-red-400">Failed to load boards.</td></tr>';
             }
-            tableBody.innerHTML = '';
-            boards.forEach(board => {
-                const row = document.createElement('tr');
-                row.className = 'border-b border-gray-700 hover:bg-gray-700';
-                row.innerHTML = `
-                    <td class="p-2 font-mono text-sm">${board.board_id}</td>
-                    <td class="p-2">${board.number_of_relays}</td>
-                    <td class="p-2">${board.version_number}</td>
-                    <td class="p-2">
-                        <button onclick="deleteBoard('${board.board_id}')" class="text-red-400 hover:text-red-600 font-semibold">Delete</button>
-                    </td>
-                `;
-                tableBody.appendChild(row);
-            });
         }
 
         async function deleteBoard(boardId) {
@@ -233,15 +244,15 @@
         // --- MASS EMAIL ---
         document.getElementById('mass-email-form').addEventListener('submit', async (e) => {
             e.preventDefault();
+            const btn = e.target.querySelector('button');
             const subject = document.getElementById('email-subject').value;
             const body = document.getElementById('email-body').value;
             
-            if (!subject || !body) {
-                alert('Subject and Message cannot be empty.');
-                return;
-            }
+            if (!subject || !body) { alert('Subject and Message cannot be empty.'); return; }
             
             if (confirm('Are you sure you want to send this email to ALL users?')) {
+                btn.textContent = 'Sending...';
+                btn.disabled = true;
                 const response = await fetch('/api/admin/send-mass-email', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -249,9 +260,9 @@
                 });
                 const result = await response.json();
                 alert(result.message);
-                if (response.ok) {
-                    e.target.reset();
-                }
+                if (response.ok) e.target.reset();
+                btn.textContent = 'Send to All Users';
+                btn.disabled = false;
             }
         });
 
@@ -273,17 +284,20 @@
             const rows = Array.from(tableBody.querySelectorAll('tr'));
 
             const sortedRows = rows.sort((a, b) => {
-                const aColText = a.querySelector(`td:nth-child(${colIndex + 1})`).textContent.trim();
-                const bColText = b.querySelector(`td:nth-child(${colIndex + 1})`).textContent.trim();
+                const aCell = a.querySelector(`td:nth-child(${colIndex + 1})`);
+                const bCell = b.querySelector(`td:nth-child(${colIndex + 1})`);
                 
-                if (ascending) {
-                    return aColText.localeCompare(bColText, undefined, {numeric: true});
-                } else {
-                    return bColText.localeCompare(aColText, undefined, {numeric: true});
-                }
+                if (!aCell || !bCell) return 0;
+                
+                const aColText = aCell.textContent.trim();
+                const bColText = bCell.textContent.trim();
+                
+                const compare = aColText.localeCompare(bColText, undefined, {numeric: true, sensitivity: 'base'});
+                return ascending ? compare : -compare;
             });
 
-            tableBody.innerHTML = '';
+            // Clear and re-append sorted rows
+            rows.forEach(row => tableBody.removeChild(row));
             sortedRows.forEach(row => tableBody.appendChild(row));
         }
     </script>
