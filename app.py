@@ -30,6 +30,8 @@ from api.ai_routes import ai_api_bp
 from frontend.routes import frontend_bp
 from oauth.routes import oauth_bp
 from analytics.routes import analytics_bp
+from admin.routes import admin_bp             # <-- IMPORT ADMIN FRONTEND
+from admin.api_routes import admin_api_bp     # <-- IMPORT ADMIN API
 
 app.register_blueprint(auth_bp)
 app.register_blueprint(api_bp, url_prefix='/api')
@@ -37,6 +39,8 @@ app.register_blueprint(ai_api_bp, url_prefix='/api')
 app.register_blueprint(frontend_bp)
 app.register_blueprint(oauth_bp)
 app.register_blueprint(analytics_bp, url_prefix='/api')
+app.register_blueprint(admin_bp)              # <-- REGISTER ADMIN FRONTEND
+app.register_blueprint(admin_api_bp, url_prefix='/api') # <-- REGISTER ADMIN API
 
 # Configure OAuth providers
 from oauth.providers import configure_oauth_providers
