@@ -5,9 +5,14 @@ from utils.helpers import get_current_user_theme, get_user_data
 frontend_bp = Blueprint('frontend', __name__)
 
 @frontend_bp.route('/')
-@login_required
 def home():
-    theme = get_current_user_theme()
+     """
+    Renders the home page.
+    This page is accessible to everyone.
+    """
+    theme = 'light' # Default theme for anonymous users
+    if current_user.is_authenticated:
+        theme = get_current_user_theme()
     return render_template('home.html', theme=theme)
 
 @frontend_bp.route('/control.html')
