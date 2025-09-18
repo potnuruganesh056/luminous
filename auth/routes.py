@@ -42,26 +42,28 @@ def signin():
         return redirect(url_for('frontend.home'))
     
     if request.method == 'POST':
-        try:
-            username = request.form['username']
-            password = request.form['password']
-            
-            all_users = get_all_users_from_db()
-            user_data = next((u for u in all_users if u['username'] == username), None)
+        # ... (try block and form reading) ...
+        
+        all_users = get_all_users_from_db()
+        user_data = next((u for u in all_users if u['username'] == username), None)
 
-            if user_data and user_data.get('password_hash') and check_password_hash(user_data['password_hash'], password):
-                user_obj = User(user_data['id'], user_data['username'], user_data['password_hash'])
-                login_user(user_obj, remember=True)
-                return redirect(url_for('frontend.home'))
-            
-            flash('Invalid username or password.', 'error')
-            return redirect(url_for('auth.signin'))
-
-        except Exception as e:
-            flash('An unexpected error occurred. Please try again.', 'error')
-            return redirect(url_for('auth.signin'))
-            
+        if user_data and user_data.get('password_hash') and check_password_hash(user_data['password_hash'], password):
+            # --- NEW: Check if user is suspended ---
+            if user_data.get('is_suspended'):
+                flash('This account has been suspended.', 'error')
+                return redirect(url_for('auth.signin'))
+            # --- END NEW ---
+                
+            user_obj = User(user_data['id'], user_data['username'], user_data['password_hash'])
+            login_user(user_obj, remember=True)
+            return redirect(url_for('frontend.home'))
+        
+        flash('Invalid username or password.', 'error')
+        return redirect(url_for('auth.signin'))
+        
+    # ... (rest of the function) ...
     return render_template('signin.html')
+
 
 @auth_bp.route('/signup', methods=['GET', 'POST'])
 def signup():
