@@ -16,6 +16,11 @@ def find_or_create_oauth_user(profile):
     # --- Case 1: User with this email already exists ---
     if user_record:
         user_to_update = next((u for u in all_users if u['id'] == user_record['id']), None)
+        user_data_to_update = all_data.get(user_record['id'])
+
+        # MODIFICATION: Update the user's details on every login
+        user_to_update['username'] = profile['name']
+        user_data_to_update['user_settings']['name'] = profile['name']
         user_data_to_update['user_settings']['picture'] = profile.get('picture')
 
         # Link the new provider
@@ -44,7 +49,7 @@ def find_or_create_oauth_user(profile):
             user_data_to_update['user_settings']['google_picture'] = profile['picture']
         elif profile['provider'] == 'github':
             user_data_to_update['user_settings']['github_picture'] = profile['picture']
-            user_data_to_update['user_settings']['github_profile_url'] = profile['profile_url']
+            user_data_to_update['user_settings']['github_profile_url'] = profile.get('profile_url')
         all_data[new_user_id] = user_data_to_update
 
     # Save all changes back to the database
@@ -55,9 +60,4 @@ def find_or_create_oauth_user(profile):
     user_obj = User(user_record['id'], user_record['username'], user_record.get('password_hash'))
     login_user(user_obj, remember=True)
     
-    return redirect(url_for('frontend.home')) = all_data.get(user_record['id'])
-
-        # MODIFICATION: Update the user's details on every login
-        user_to_update['username'] = profile['name']
-        user_data_to_update['user_settings']['name'] = profile['name']
-        user_data_to_update
+    return redirect(url_for('frontend.home'))
