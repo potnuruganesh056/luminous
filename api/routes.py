@@ -8,6 +8,7 @@ from mqtt.client import mqtt_client
 from config import Config
 from utils.email_helper import send_detection_email_thread
 from analytics.data_processing import load_analytics_data, calculate_statistics
+from utils.encryption import decrypt_data
 
 api_bp = Blueprint('api', __name__)
 
@@ -397,3 +398,20 @@ def save_appliance_order():
         return jsonify({"status": "error", "message": "Invalid order data."}), 400
     except Exception as e:
         return jsonify({"status": "error", "message": "An internal error occurred."}), 500
+
+# --- NEW PUBLIC ENDPOINT FOR QR EXTRACTION ---
+@api_bp.route('/extract-qr-data', methods=['POST'])
+def extract_qr_data():
+    """
+    Public endpoint for devices to send encrypted QR data and get JSON back.
+    """
+    encrypted_text = request.json.get('encrypted_data')
+    if not encrypted_text:
+        return jsonify({"error": "Missing 'encrypted_data' field."}), 400
+        
+    decrypted_board_info = decrypt_data(encrypted_text)
+    
+    if decrypted_board_info:
+        return jsonify(decrypted_board_info), 200
+    else:
+        return jsonify({"error": "Decryption failed. Invalid or tampered data."}), 400
