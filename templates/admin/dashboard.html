@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <title>Admin Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" />
+    <script src="https://cdn.jsdelivr.net/npm/qrious/dist/qrious.min.js"></script>
+    <style>
+        :root { --primary-accent-light: #4f46e5; }
+    </style>
+</head>
+<body class="bg-gray-900 text-gray-100 font-sans">
+    <div class="flex">
+        <aside class="w-64 bg-gray-800 p-6 min-h-screen">
+            <h1 class="text-3xl font-bold text-indigo-400 mb-8">Admin Panel</h1>
+            <nav class="space-y-4">
+                <a href="#" class="nav-link active" data-target="dashboard-view"><i class="fas fa-tachometer-alt mr-2"></i>Dashboard</a>
+                <a href="#" class="nav-link" data-target="users-view"><i class="fas fa-users mr-2"></i>Users</a>
+                <a href="#" class="nav-link" data-target="boards-view"><i class="fas fa-server mr-2"></i>Boards</a>
+                <a href="#" class="nav-link" data-target="email-view"><i class="fas fa-paper-plane mr-2"></i>Mass Email</a>
+                <a href="{{ url_for('admin.logout') }}" class="nav-link text-red-400 hover:bg-red-500 hover:text-white"><i class="fas fa-sign-out-alt mr-2"></i>Logout</a>
+            </nav>
+        </aside>
+
+        <main class="flex-grow p-8">
+            <div id="dashboard-view" class="view-content">
+                <h2 class="text-4xl font-bold mb-6">QR Code Generator</h2>
+                <div class="bg-gray-800 p-6 rounded-lg shadow-lg">
+                    <div class="flex items-center space-x-4">
+                        <div>
+                            <label for="relay-count" class="block text-sm font-medium mb-1">Number of Relays</label>
+                            <input type="number" id="relay-count" value="4" min="1" max="16" class="bg-gray-700 border border-gray-600 rounded-md p-2">
+                        </div>
+                        <button id="generate-qr-btn" class="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 rounded-lg font-bold self-end">Generate</button>
+                    </div>
+                    <div id="qr-result" class="mt-6 hidden text-center">
+                        <canvas id="qr-canvas" class="mx-auto bg-white p-2 rounded-lg"></canvas>
+                        <p class="mt-2 text-lg">Board ID: <span id="board-id-display" class="font-mono text-green-400"></span></p>
+                        <p class="text-sm text-gray-400">Scan this code to register the new board.</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div id="users-view" class="view-content hidden">
+                <h2 class="text-4xl font-bold mb-6">User Management</h2>
+                <div class="bg-gray-800 p-6 rounded-lg shadow-lg">
+                   <table class="w-full text-left">
+                       <thead>
+                           <tr class="border-b border-gray-700">
+                               <th class="p-2">ID</th>
+                               <th class="p-2">Username</th>
+                               <th class="p-2">Email</th>
+                               <th class="p-2">Role</th>
+                               <th class="p-2">Actions</th>
+                           </tr>
+                       </thead>
+                       <tbody id="user-table-body">
+                           </tbody>
+                   </table>
+                </div>
+            </div>
+            </main>
+    </div>
+
+    <script>
+        // Tab switching logic
+        document.querySelectorAll('.nav-link').forEach(link => {
+            if (!link.href.includes('logout')) {
+                link.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
+                    e.currentTarget.classList.add('active');
+                    
+                    const targetId = e.currentTarget.dataset.target;
+                    document.querySelectorAll('.view-content').forEach(view => {
+                        view.classList.add('hidden');
+                    });
+                    document.getElementById(targetId).classList.remove('hidden');
+                    
+                    if(targetId === 'users-view') loadUsers();
+                });
+            }
+        });
+        
+        // QR Code Generation
+        document.getElementById('generate-qr-btn').addEventListener('click', async () => {
+            const relayCount = document.getElementById('relay-count').value;
+            const response = await fetch('/api/admin/generate-board', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ relay_count: relayCount })
+            });
+            const result = await response.json();
+            if (result.status === 'success') {
+                document.getElementById('qr-result').classList.remove('hidden');
+                document.getElementById('board-id-display').textContent = result.board_id;
+                new QRious({
+                    element: document.getElementById('qr-canvas'),
+                    value: result.qr_data,
+                    size: 200,
+                    background: 'white',
+                    foreground: 'black'
+                });
+            }
+        });
+
+        // User Management
+        async function loadUsers() {
+            const response = await fetch('/api/admin/users');
+            const users = await response.json();
+            const tableBody = document.getElementById('user-table-body');
+            tableBody.innerHTML = '';
+            users.forEach(user => {
+                const row = document.createElement('tr');
+                row.className = 'border-b border-gray-700';
+                row.innerHTML = `
+                    <td class="p-2 font-mono text-sm">${user.id}</td>
+                    <td class="p-2">${user.username}</td>
+                    <td class="p-2">${user.email}</td>
+                    <td class="p-2">${user.is_admin ? '<span class="px-2 py-1 bg-indigo-500 text-xs rounded-full">Admin</span>' : '<span class="px-2 py-1 bg-gray-600 text-xs rounded-full">User</span>'}</td>
+                    <td class="p-2">
+                        ${!user.is_admin ? `<button onclick="deleteUser('${user.id}')" class="text-red-400 hover:text-red-600">&times; Delete</button>` : ''}
+                    </td>
+                `;
+                tableBody.appendChild(row);
+            });
+        }
+        
+        async function deleteUser(userId) {
+            if (confirm(`Are you sure you want to permanently delete user ${userId}?`)) {
+                const response = await fetch('/api/admin/delete-user', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ user_id: userId })
+                });
+                const result = await response.json();
+                alert(result.message);
+                loadUsers();
+            }
+        }
+    </script>
+</body>
+</html>
