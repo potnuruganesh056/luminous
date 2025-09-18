@@ -26,13 +26,17 @@ oauth = OAuth(app)
 # Import and register blueprints
 from auth.routes import auth_bp
 from api.routes import api_bp
+from api.ai_routes import ai_api_bp
 from frontend.routes import frontend_bp
 from oauth.routes import oauth_bp
+from analytics.routes import analytics_bp
 
 app.register_blueprint(auth_bp)
 app.register_blueprint(api_bp, url_prefix='/api')
+app.register_blueprint(ai_api_bp, url_prefix='/api')
 app.register_blueprint(frontend_bp)
 app.register_blueprint(oauth_bp)
+app.register_blueprint(analytics_bp, url_prefix='/api')
 
 # Configure OAuth providers
 from oauth.providers import configure_oauth_providers
