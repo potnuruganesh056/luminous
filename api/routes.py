@@ -9,6 +9,8 @@ from config import Config
 from utils.email_helper import send_detection_email_thread
 from analytics.data_processing import load_analytics_data, calculate_statistics
 from utils.encryption import decrypt_data
+from utils.encryption import decrypt_data
+from admin.api_routes import get_all_boards_from_db 
 
 api_bp = Blueprint('api', __name__)
 
@@ -400,18 +402,29 @@ def save_appliance_order():
         return jsonify({"status": "error", "message": "An internal error occurred."}), 500
 
 # --- NEW PUBLIC ENDPOINT FOR QR EXTRACTION ---
+
 @api_bp.route('/extract-qr-data', methods=['POST'])
 def extract_qr_data():
-    """
-    Public endpoint for devices to send encrypted QR data and get JSON back.
-    """
     encrypted_text = request.json.get('encrypted_data')
     if not encrypted_text:
         return jsonify({"error": "Missing 'encrypted_data' field."}), 400
         
     decrypted_board_info = decrypt_data(encrypted_text)
     
-    if decrypted_board_info:
+    # --- NEW: Check if board is suspended ---
+    if decrypted_board_info and 'board_id' in decrypted_board_info:
+        all_boards = get_all_boards_from_db()
+        board_id = decrypted_board_info['board_id']
+        board_status = all_boards.get(board_id)
+
+        if not board_status:
+             return jsonify({"error": "Board does not exist in the database."}), 404
+        
+        if board_status.get('is_suspended'):
+            return jsonify({"error": "This board has been suspended."}), 403 # 403 Forbidden
+        
         return jsonify(decrypted_board_info), 200
+    # --- END NEW ---
+    
     else:
         return jsonify({"error": "Decryption failed. Invalid or tampered data."}), 400
