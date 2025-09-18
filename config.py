@@ -15,6 +15,9 @@ class Config:
     
     # Session Configuration
     REMEMBER_COOKIE_DURATION = timedelta(days=7)
+
+    ENCRYPTION_USER_KEY = os.getenv('ENCRYPTION_USER_KEY', 'default-super-strong-password-for-qr')
+    ENCRYPTION_SALT = os.getenv('ENCRYPTION_SALT', 'a_default_fixed_salt_for_qr_keys')
     
     # OAuth Configuration
     GOOGLE_CLIENT_ID = os.getenv('GOOGLE_CLIENT_ID')
