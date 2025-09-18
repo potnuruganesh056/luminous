@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-   
+    
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Lumino'US' | {% block title %}{% endblock %}</title>
@@ -40,32 +40,43 @@
 
             <div class="flex-grow overflow-y-auto px-6">
                 <nav class="flex flex-col space-y-4 w-full">
-                    <a href="{{ url_for('home') }}" class="nav-link {% if request.path == url_for('home') %}active{% endif %}">
+                    <a href="{{ url_for('frontend.home') }}" class="nav-link {% if request.path == url_for('frontend.home') %}active{% endif %}">
                         <i class="fas fa-home mr-3"></i>Home
                     </a>
-                    <a href="{{ url_for('control') }}" class="nav-link {% if request.path == url_for('control') %}active{% endif %}">
+                    <a href="{{ url_for('frontend.control') }}" class="nav-link {% if request.path == url_for('frontend.control') %}active{% endif %}">
                         <i class="fas fa-toggle-on mr-3"></i>Control Panel
                     </a>
-                    <a href="{{ url_for('analytics') }}" class="nav-link {% if request.path == url_for('analytics') %}active{% endif %}">
+                    <a href="{{ url_for('frontend.analytics') }}" class="nav-link {% if request.path == url_for('frontend.analytics') %}active{% endif %}">
                         <i class="fas fa-chart-line mr-3"></i>Analytics
                     </a>
-                    <a href="{{ url_for('settings') }}" class="nav-link {% if request.path == url_for('settings') %}active{% endif %}">
+                    <a href="{{ url_for('frontend.settings') }}" class="nav-link {% if request.path == url_for('frontend.settings') %}active{% endif %}">
                         <i class="fas fa-cogs mr-3"></i>Settings
                     </a>
-                    <a href="{{ url_for('contact') }}" class="nav-link {% if request.path == url_for('contact') %}active{% endif %}">
+                    <a href="{{ url_for('frontend.contact') }}" class="nav-link {% if request.path == url_for('frontend.contact') %}active{% endif %}">
                         <i class="fas fa-envelope mr-3"></i>Contact Us
                     </a>
                 </nav>
             </div>
             
             <div class="p-6 border-t border-gray-300 dark:border-gray-700">
+                {% if current_user.is_authenticated %}
                 <div class="flex items-center space-x-3 text-gray-700 dark:text-gray-300 mb-4">
                     <img id="user-picture" alt="Profile Picture" class="w-10 h-10 rounded-full object-cover">
                     <span id="user-name" class="font-semibold">Guest</span>
                 </div>
-                <button onclick="performLogout()" class="nav-link w-full text-center bg-gray-600 hover:bg-gray-700 dark:bg-gray-700 dark:hover:bg-gray-600 text-white font-bold">
+                <button onclick="performLogout()" class="nav-link w-full text-center bg-red-500 hover:bg-red-600 dark:bg-red-600 dark:hover:bg-red-700 text-white font-bold">
                    <i class="fas fa-sign-out-alt mr-2"></i>Logout
                </button>
+                {% else %}
+                <div class="space-y-3">
+                    <a href="{{ url_for('auth.signin') }}" class="nav-link w-full text-center bg-blue-600 hover:bg-blue-700 text-white font-bold">
+                        <i class="fas fa-sign-in-alt mr-2"></i>Sign In
+                    </a>
+                    <a href="{{ url_for('auth.signup') }}" class="nav-link w-full text-center bg-green-600 hover:bg-green-700 text-white font-bold">
+                        <i class="fas fa-user-plus mr-2"></i>Sign Up
+                    </a>
+                </div>
+                {% endif %}
             </div>
         </aside>
 
@@ -81,30 +92,26 @@
 
     <script src="{{ url_for('static', filename='themes.js') }}"></script>
     <script>
-        // ... (Your existing showNotification function goes here) ...\
+        // ... (Your existing showNotification function goes here) ...
         function showNotification(message, type) {
-            // --- 1. Find or Create the Notification Container ---
             let container = document.getElementById('notification-container');
             if (!container) {
                 container = document.createElement('div');
                 container.id = 'notification-container';
-                // Style the container to hold the stack of notifications
                 container.style.position = 'fixed';
                 container.style.top = '1.25rem';
                 container.style.right = '1.25rem';
                 container.style.zIndex = '1000';
                 container.style.display = 'flex';
                 container.style.flexDirection = 'column';
-                container.style.gap = '0.75rem'; // Space between notifications
+                container.style.gap = '0.75rem';
                 document.body.appendChild(container);
             }
         
-            // --- 2. Create the Notification Element ---
             const notification = document.createElement('div');
-            notification.style.position = 'relative'; // For positioning the close button
+            notification.style.position = 'relative';
             notification.style.transition = 'opacity 300ms ease, transform 300ms ease';
             
-            // Animation starting state (off-screen to the right)
             notification.style.opacity = '0';
             notification.style.transform = 'translateX(100%)';
         
@@ -117,9 +124,8 @@
                 notification.classList.add('bg-red-100', 'text-red-800', 'dark:bg-red-900', 'dark:text-red-200');
             }
         
-            // --- 3. Create the Close Button ---
             const closeButton = document.createElement('button');
-            closeButton.innerHTML = '&times;'; // 'X' symbol
+            closeButton.innerHTML = '&times;';
             closeButton.style.position = 'absolute';
             closeButton.style.top = '0.25rem';
             closeButton.style.right = '0.5rem';
@@ -128,86 +134,70 @@
             closeButton.style.fontSize = '1.5rem';
             closeButton.style.lineHeight = '1';
             closeButton.style.cursor = 'pointer';
-            closeButton.style.color = 'inherit'; // Inherit color from parent
+            closeButton.style.color = 'inherit';
             closeButton.style.opacity = '0.7';
         
             notification.appendChild(closeButton);
         
-            // --- 4. Define Dismissal Logic ---
             const dismiss = () => {
-                // Trigger fade-out animation
                 notification.style.opacity = '0';
                 notification.style.transform = 'translateX(100%)';
                 
-                // Remove the element after the animation completes
                 setTimeout(() => {
                     notification.remove();
-                    // Optional: if the container is empty, remove it
                     if (container.children.length === 0) {
                         container.remove();
                     }
-                }, 300); // Must match transition duration
+                }, 300);
             };
         
-            // Add click event to the close button
             closeButton.onclick = () => {
-                clearTimeout(timeoutId); // Cancel the auto-dismiss timer
+                clearTimeout(timeoutId);
                 dismiss();
             };
         
-            // Auto-dismiss the notification after 5 seconds
             const timeoutId = setTimeout(dismiss, 5000);
         
-            // --- 5. Add to Page and Animate In ---
-            container.prepend(notification); // Use prepend to add to the top of the stack
+            container.prepend(notification);
         
-            // Trigger fade-in animation
             setTimeout(() => {
                 notification.style.opacity = '1';
                 notification.style.transform = 'translateX(0)';
             }, 10);
         }
 
-        // MODIFICATION: Renamed function and added logic to update the profile picture
         const fetchUserProfile = async () => {
              try {
                  const response = await fetch('/api/get-user-settings');
                  if (!response.ok) throw new Error('User not logged in or API failed');
                  const settings = await response.json();
-         
+        
                  const userPictureElement = document.getElementById('user-picture');
                  const userNameElement = document.getElementById('user-name');
-         
-                 // Update username
+        
                  if (settings.name) {
                      userNameElement.textContent = settings.name;
                  }
-         
-                 // --- MODIFICATION: Profile Picture Priority Logic ---
-         
-                 // A funny, generic placeholder avatar (SVG data URI)
+        
                  const defaultFunnyImage = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='20' fill='%236366F1'/%3E%3Cpath d='M30 40 Q35 30, 40 40 T50 40' fill='none' stroke='white' stroke-width='4' stroke-linecap='round'/%3E%3Cpath d='M70 40 Q65 50, 60 40 T50 40' fill='none' stroke='white' stroke-width='4' stroke-linecap='round'/%3E%3Ccircle cx='35' cy='40' r='5' fill='white'/%3E%3Ccircle cx='65' cy='40' r='5' fill='white'/%3E%3Cpath d='M35 65 Q50 75, 65 65' fill='none' stroke='white' stroke-width='4' stroke-linecap='round'/%3E%3C/svg%3E";
-         
-                 // Priority 1: Use Google picture if available
+        
                  if (settings.google_picture) {
                      userPictureElement.src = settings.google_picture;
                  } 
-                 // Priority 2: Fallback to GitHub picture if available
                  else if (settings.github_picture) {
                      userPictureElement.src = settings.github_picture;
                  } 
-                 // Priority 3: Use the funny default image
                  else {
                      userPictureElement.src = defaultFunnyImage;
                  }
-         
+        
              } catch (error) {
                  console.error("Failed to fetch user profile:", error);
-                 // Also set the default image on error
                  document.getElementById('user-picture').src = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='20' fill='%236366F1'/%3E%3Cpath d='M30 40 Q35 30, 40 40 T50 40' fill='none' stroke='white' stroke-width='4' stroke-linecap='round'/%3E%3Cpath d='M70 40 Q65 50, 60 40 T50 40' fill='none' stroke='white' stroke-width='4' stroke-linecap='round'/%3E%3Ccircle cx='35' cy='40' r='5' fill='white'/%3E%3Ccircle cx='65' cy='40' r='5' fill='white'/%3E%3Cpath d='M35 65 Q50 75, 65 65' fill='none' stroke='white' stroke-width='4' stroke-linecap='round'/%3E%3C/svg%3E";
                  document.getElementById('user-name').textContent = 'User';
              }
         };
+
         const hideLoadingScreen = () => {
             const loadingScreen = document.getElementById('loading-screen');
             if (loadingScreen) {
@@ -218,33 +208,14 @@
             }
         };
 
-        const fetchUserName = async () => {
-            try {
-                const response = await fetch('/api/get-user-settings');
-                const data = await response.json();
-                if (data.name) {
-                    document.getElementById('user-name').textContent = data.name;
-                }
-            } catch (error) {
-                console.error("Failed to fetch user name:", error);
-            }
-        };
-       
         function performLogout() {
              console.log("Clearing user data from browser...");
-         
-             // 1. Clear local storage, which might contain theme preferences or other data.
-            localStorage.clear();
-         
-             // 2. Clear session storage, which might contain temporary session data.
-            sessionStorage.clear();
-         
-             // 3. Redirect to the server's logout route to destroy the secure session cookie.
-            window.location.href = "{{ url_for('logout') }}";
+        
+             localStorage.clear();
+             sessionStorage.clear();
+             window.location.href = "{{ url_for('auth.logout') }}";
         }
 
-        
-        // Mobile sidebar toggle
         document.getElementById('mobile-menu-btn').addEventListener('click', () => {
             const sidebar = document.getElementById('sidebar');
             sidebar.classList.toggle('-translate-x-full');
@@ -252,7 +223,9 @@
 
         window.addEventListener('load', () => {
             hideLoadingScreen();
-            fetchUserProfile(); // Call the updated function
+            {% if current_user.is_authenticated %}
+            fetchUserProfile(); // Only call this if the user is logged in
+            {% endif %}
         });
     </script>
 </body>
