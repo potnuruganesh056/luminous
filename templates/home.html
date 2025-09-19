@@ -4,20 +4,167 @@
 
 {% block content %}
 <div class="container mx-auto">
-    <!-- Hero Section -->
-    <header class="py-20 px-4 text-center bg-gray-50 dark:bg-gray-950 rounded-xl transition-colors duration-500">
-        <h1 class="text-5xl md:text-6xl font-extrabold mb-4 text-primary-accent">Lumino'US'</h1>
-        <p class="text-xl md:text-2xl max-w-2xl mx-auto mb-8 text-gray-700 dark:text-gray-300">AI-Powered Smart Energy Automation System</p>
-        <p class="text-lg max-w-3xl mx-auto text-gray-600 dark:text-gray-400">
-            Lumino'US' is an intelligent lighting control system that uses a combination of computer vision and IoT to automate and optimize energy consumption. By using a custom-trained AI model, our system can detect human presence and lighting states in real time, making smart decisions to reduce electricity waste. This project aims to provide a cost-effective and scalable solution for both urban and rural environments, promoting sustainability and energy efficiency for a smarter future.
-        </p>
-    </header>
+    <section class="relative py-16 md:py-24 px-4 text-center overflow-hidden">
+        <div class="absolute inset-0 bg-gray-50 dark:bg-gray-900/50 rounded-xl" style="perspective: 1000px;">
+            <div id="hero-bg-card" class="perspective-card w-full h-full bg-card rounded-xl shadow-2xl"></div>
+        </div>
+        <div class="relative z-10">
+            <h1 class="text-5xl md:text-6xl font-extrabold mb-4 text-primary-accent">Lumino'US'</h1>
+            <p class="text-xl md:text-2xl max-w-2xl mx-auto mb-8 text-gray-700 dark:text-gray-300">An AI-Powered Smart Energy Automation System [cite: 1]</p>
+            <p class="text-lg max-w-3xl mx-auto text-gray-600 dark:text-gray-400 mb-10">
+                Lumino'US' is a secure, scalable, and cost-effective solution for intelligent lighting control, designed for both urban and rural infrastructures. [cite_start]It uses computer vision, deep learning, and IoT to reduce electricity bills and promote sustainability. [cite: 19]
+            </p>
+            <a href="{{ url_for('frontend.control') }}" class="px-8 py-3 bg-secondary-accent text-white rounded-lg hover:bg-opacity-80 font-bold text-lg transition-transform transform hover:scale-105">Go to Control Panel</a>
+        </div>
+    </section>
 
-    <div class="my-12">
-        <div class="text-center mb-8">
+    <section class="my-16 md:my-24">
+        <div class="text-center mb-12">
+            <h2 class="text-4xl font-bold text-gray-800 dark:text-gray-200">Key Advantages of Lumino'US'</h2>
+            <p class="text-lg text-gray-600 dark:text-gray-400 mt-2">Discover the benefits of our intelligent automation system.</p>
+        </div>
+        <div class="feature-carousel flex gap-6 pb-4 overflow-x-auto">
+            <div class="feature-card flex-shrink-0 w-80 bg-card text-card-foreground rounded-xl border p-6 shadow-sm flex flex-col text-center">
+                <i class="fas fa-bullseye text-4xl text-primary-accent mb-4 mx-auto"></i>
+                <h3 class="text-xl font-bold mb-2">High Accuracy</h3>
+                [cite_start]<p class="text-muted-foreground flex-grow">Computer vision-based detection ensures precise monitoring of occupancy and device states, minimizing false positives and improving automation reliability. [cite: 268]</p>
+            </div>
+            <div class="feature-card flex-shrink-0 w-80 bg-card text-card-foreground rounded-xl border p-6 shadow-sm flex flex-col text-center">
+                <i class="fas fa-dollar-sign text-4xl text-primary-accent mb-4 mx-auto"></i>
+                <h3 class="text-xl font-bold mb-2">Cost-Effectiveness</h3>
+                [cite_start]<p class="text-muted-foreground flex-grow">Relies on standard lighting fixtures and affordable IoT hardware, avoiding expensive proprietary smart bulbs and controllers. [cite: 269]</p>
+            </div>
+            <div class="feature-card flex-shrink-0 w-80 bg-card text-card-foreground rounded-xl border p-6 shadow-sm flex flex-col text-center">
+                <i class="fas fa-expand-alt text-4xl text-primary-accent mb-4 mx-auto"></i>
+                <h3 class="text-xl font-bold mb-2">Scalability</h3>
+                [cite_start]<p class="text-muted-foreground flex-grow">Easily expandable to multiple rooms and devices using a single camera and centralized backend, supporting both residential and institutional setups. [cite: 270]</p>
+            </div>
+            <div class="feature-card flex-shrink-0 w-80 bg-card text-card-foreground rounded-xl border p-6 shadow-sm flex flex-col text-center">
+                <i class="fas fa-user-cog text-4xl text-primary-accent mb-4 mx-auto"></i>
+                <h3 class="text-xl font-bold mb-2">User Control</h3>
+                [cite_start]<p class="text-muted-foreground flex-grow">The responsive system enables manual overrides, scheduling, and AI-lock features, giving users full control over automation. [cite: 271]</p>
+            </div>
+             <div class="feature-card flex-shrink-0 w-80 bg-card text-card-foreground rounded-xl border p-6 shadow-sm flex flex-col text-center">
+                <i class="fas fa-shield-alt text-4xl text-primary-accent mb-4 mx-auto"></i>
+                <h3 class="text-xl font-bold mb-2">Enhanced Security</h3>
+                [cite_start]<p class="text-muted-foreground flex-grow">Beyond energy efficiency, AI-based detection can be extended for intruder alerts, increasing the overall safety of the premises. [cite: 272]</p>
+            </div>
+             <div class="feature-card flex-shrink-0 w-80 bg-card text-card-foreground rounded-xl border p-6 shadow-sm flex flex-col text-center">
+                <i class="fas fa-leaf text-4xl text-primary-accent mb-4 mx-auto"></i>
+                <h3 class="text-xl font-bold mb-2">Energy Efficiency</h3>
+                [cite_start]<p class="text-muted-foreground flex-grow">Intelligent automation reduces unnecessary power consumption, contributing to lower energy costs and environmental sustainability. [cite: 274]</p>
+            </div>
+        </div>
+    </section>
+
+    <section class="my-16 md:my-24">
+        <div class="text-center mb-12">
+            <h2 class="text-4xl font-bold text-gray-800 dark:text-gray-200">A Simple Workflow</h2>
+            <p class="text-lg text-gray-600 dark:text-gray-400 mt-2">From detection to action in milliseconds.</p>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-8 text-center">
+            <div class="flex flex-col items-center">
+                <div class="flex items-center justify-center w-20 h-20 bg-card rounded-full border-2 border-secondary-accent mb-4">
+                    <i class="fas fa-video text-3xl text-secondary-accent"></i>
+                </div>
+                <h3 class="text-xl font-bold mb-2">1. Video Feed</h3>
+                <p class="text-muted-foreground">The camera feed is processed by the YOLOv8 AI model. [cite: 133]</p>
+            </div>
+            <div class="flex flex-col items-center">
+                <div class="flex items-center justify-center w-20 h-20 bg-card rounded-full border-2 border-secondary-accent mb-4">
+                    <i class="fas fa-brain text-3xl text-secondary-accent"></i>
+                </div>
+                <h3 class="text-xl font-bold mb-2">2. AI Detection</h3>
+                <p class="text-muted-foreground">The AI detects human presence and the current state of lights (ON/OFF). [cite: 133, 164]</p>
+            </div>
+            <div class="flex flex-col items-center">
+                <div class="flex items-center justify-center w-20 h-20 bg-card rounded-full border-2 border-secondary-accent mb-4">
+                    <i class="fas fa-server text-3xl text-secondary-accent"></i>
+                </div>
+                <h3 class="text-xl font-bold mb-2">3. Backend Logic</h3>
+                <p class="text-muted-foreground">The Flask backend interprets the AI's findings and decides on an action. [cite: 134]</p>
+            </div>
+            <div class="flex flex-col items-center">
+                <div class="flex items-center justify-center w-20 h-20 bg-card rounded-full border-2 border-secondary-accent mb-4">
+                    <i class="fas fa-microchip text-3xl text-secondary-accent"></i>
+                </div>
+                <h3 class="text-xl font-bold mb-2">4. IoT Execution</h3>
+                <p class="text-muted-foreground">An ESP8266 microcontroller receives the command and toggles the appliance relay. [cite: 135]</p>
+            </div>
+        </div>
+    </section>
+
+    <section class="my-16 md:my-24 px-4">
+        <div class="text-center mb-12">
+            <h2 class="text-4xl font-bold text-gray-800 dark:text-gray-200">Part 1: Hardware Installation</h2>
+            <p class="text-lg text-gray-600 dark:text-gray-400 mt-2">Get your device online in four simple steps.</p>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+            <div class="bg-card p-6 rounded-xl border shadow-md text-center">
+                <div class="text-5xl font-bold text-secondary-accent opacity-25">01</div>
+                <i class="fas fa-power-off text-4xl text-secondary-accent my-4"></i>
+                <h3 class="text-xl font-bold mb-2">Power On Device</h3>
+                <p class="text-muted-foreground">Connect your Lumino'US' board to a power supply. A status light will indicate it has booted up and is broadcasting a temporary Wi-Fi network for setup.</p>
+            </div>
+            <div class="bg-card p-6 rounded-xl border shadow-md text-center">
+                <div class="text-5xl font-bold text-secondary-accent opacity-25">02</div>
+                <i class="fas fa-wifi text-4xl text-secondary-accent my-4"></i>
+                <h3 class="text-xl font-bold mb-2">Connect to Hotspot</h3>
+                <p class="text-muted-foreground">On your phone or computer, find and connect to the Wi-Fi network named **"Luminous-Setup"**. Use the password provided with your device.</p>
+            </div>
+            <div class="bg-card p-6 rounded-xl border shadow-md text-center">
+                <div class="text-5xl font-bold text-secondary-accent opacity-25">03</div>
+                <i class="fas fa-network-wired text-4xl text-secondary-accent my-4"></i>
+                <h3 class="text-xl font-bold mb-2">Open Setup Portal</h3>
+                <p class="text-muted-foreground">A captive portal page should open automatically. If not, open a web browser and navigate to any website to be redirected to the setup page.</p>
+            </div>
+            <div class="bg-card p-6 rounded-xl border shadow-md text-center">
+                <div class="text-5xl font-bold text-secondary-accent opacity-25">04</div>
+                <h3 class="text-xl font-bold mb-2 mt-12">Configure Wi-Fi</h3>
+                <p class="text-muted-foreground">Select your home or office Wi-Fi network from the list, enter its password, and click connect. The device will restart and connect to your main network.</p>
+            </div>
+        </div>
+    </section>
+
+    <section class="my-16 md:my-24">
+        <div class="text-center mb-16">
+            <h2 class="text-4xl font-bold text-gray-800 dark:text-gray-200">Part 2: App & Appliance Setup</h2>
+            <p class="text-lg text-gray-600 dark:text-gray-400 mt-2">Bring your device to life on the Lumino'US' platform.</p>
+        </div>
+        <div class="timeline-container">
+            <div class="timeline-progress"></div>
+            <div class="timeline-step timeline-left">
+                <div class="timeline-content bg-card p-6 rounded-lg border shadow-md">
+                    <div class="flex items-center justify-end mb-2"><h3 class="text-2xl font-bold text-secondary-accent">Step 1: Create Account & Room</h3><i class="fas fa-user-plus text-2xl text-secondary-accent ml-4"></i></div>
+                    [cite_start]<p class="text-muted-foreground text-right">First, sign up or log in. In the Control Panel, create a new room (e.g., "Living Room") to house your device. [cite: 114]</p>
+                </div>
+            </div>
+            <div class="timeline-step timeline-right">
+                <div class="timeline-content bg-card p-6 rounded-lg border shadow-md">
+                    <div class="flex items-center mb-2"><i class="fas fa-qrcode text-2xl text-secondary-accent mr-4"></i><h3 class="text-2xl font-bold text-secondary-accent">Step 2: Register Your Board</h3></div>
+                    <p class="text-muted-foreground">Each Lumino'US' board has a unique QR code. In your room, select "Add a New Board" and scan this code to securely pair the hardware to your account.</p>
+                </div>
+            </div>
+            <div class="timeline-step timeline-left">
+                <div class="timeline-content bg-card p-6 rounded-lg border shadow-md">
+                    <div class="flex items-center justify-end mb-2"><h3 class="text-2xl font-bold text-secondary-accent">Step 3: Add Appliances</h3><i class="fas fa-plug text-2xl text-secondary-accent ml-4"></i></div>
+                    <p class="text-muted-foreground text-right">With the board registered, click "Add Appliance." [cite_start]Give your appliance a name (e.g., "Main Light") and assign it to an available relay on the board. [cite: 116, 117]</p>
+                </div>
+            </div>
+            <div class="timeline-step timeline-right">
+                <div class="timeline-content bg-card p-6 rounded-lg border shadow-md">
+                    <div class="flex items-center mb-2"><i class="fas fa-globe text-2xl text-secondary-accent mr-4"></i><h3 class="text-2xl font-bold text-secondary-accent">Step 4: Enjoy Smart Control</h3></div>
+                    <p class="text-muted-foreground">That's it! [cite_start]You can now control your devices, set timers, and enable AI automation from anywhere in the world through the dashboard. [cite: 273, 338]</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <div class="my-16 md:my-24">
+        <div class="text-center mb-12">
             <h2 class="text-4xl font-bold text-gray-800 dark:text-gray-200">Our Mission and Advantages</h2>
         </div>
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
             <!-- Advantage Card 1 -->
             <div data-slot="card" class="bg-card text-card-foreground gap-6 rounded-xl border p-6 shadow-sm transition-all flex flex-col">
                 <div data-slot="card-header" class="grid auto-rows-min grid-rows-[auto_auto] items-start gap-1.5 has-data-[slot=card-action]:grid-cols-[1fr_auto]">
@@ -75,5 +222,107 @@
             </div>
         </div>
     </div>
+
+    <section class="my-16 md:my-24">
+        <div class="text-center mb-12">
+            <h2 class="text-4xl font-bold text-gray-800 dark:text-gray-200">Explore the Dashboard</h2>
+            <p class="text-lg text-gray-600 dark:text-gray-400 mt-2">Monitor, control, and analyze with a user-friendly interface. [cite: 18]</p>
+        </div>
+        <div class="relative max-w-4xl mx-auto bg-card rounded-xl border p-4 shadow-lg">
+            <div class="showcase-carousel relative h-96 overflow-hidden rounded-lg">
+                <div class="carousel-item active"><img src="{{ url_for('static', filename='images/control-panel.png') }}" alt="Control Panel" class="w-full h-full object-contain"></div>
+                <div class="carousel-item"><img src="{{ url_for('static', filename='images/analytics-dashboard.png') }}" alt="Analytics Dashboard" class="w-full h-full object-contain"></div>
+            </div>
+            <div class="carousel-dots absolute left-1/2 -translate-x-1/2 flex space-x-2">
+                <button class="carousel-dot h-3 w-3 bg-gray-400 rounded-full active"></button>
+                <button class="carousel-dot h-3 w-3 bg-gray-400 rounded-full"></button>
+            </div>
+        </div>
+    </section>
+
 </div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/ScrollTrigger.min.js"></script>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    // --- 3D Hero Card Tilt Effect ---
+    const heroCard = document.getElementById('hero-bg-card');
+    if (heroCard) {
+        document.querySelector('section').addEventListener('mousemove', (e) => {
+            const { left, top, width, height } = heroCard.getBoundingClientRect();
+            const x = e.clientX - left;
+            const y = e.clientY - top;
+            const rotateX = (y / height - 0.5) * -20; // -10 to 10 degrees
+            const rotateY = (x / width - 0.5) * 20;  // -10 to 10 degrees
+            heroCard.style.transform = `rotateX(${rotateX}deg) rotateY(${rotateY}deg)`;
+        });
+    }
+
+    // --- Screenshot Showcase Carousel ---
+    const carouselItems = document.querySelectorAll('.showcase-carousel .carousel-item');
+    const dots = document.querySelectorAll('.carousel-dot');
+    let currentIndex = 0;
+
+    function showSlide(index) {
+        carouselItems.forEach((item, i) => {
+            item.classList.remove('active');
+            dots[i].classList.remove('active');
+            if (i === index) {
+                item.classList.add('active');
+                dots[i].classList.add('active');
+            }
+        });
+    }
+
+    dots.forEach((dot, index) => {
+        dot.addEventListener('click', () => {
+            currentIndex = index;
+            showSlide(currentIndex);
+        });
+    });
+
+    setInterval(() => {
+        currentIndex = (currentIndex + 1) % carouselItems.length;
+        showSlide(currentIndex);
+    }, 4000); // Change slide every 4 seconds
+
+    // --- NEW: GSAP Timeline Animation ---
+    gsap.registerPlugin(ScrollTrigger);
+    
+    const timeline = document.querySelector('.timeline-container');
+    const steps = document.querySelectorAll('.timeline-step');
+    const progressLine = document.querySelector('.timeline-progress');
+
+    if (timeline && steps.length > 0 && progressLine) {
+        // Animate the progress line
+        gsap.to(progressLine, {
+            scaleY: 1,
+            scrollTrigger: {
+                trigger: timeline,
+                start: "top 20%",
+                end: "bottom 80%",
+                scrub: 1, // Smoothly animates with scroll
+            }
+        });
+
+        // Animate each step content fading in
+        steps.forEach(step => {
+            const content = step.querySelector('.timeline-content');
+            gsap.from(content, {
+                opacity: 0,
+                y: 30,
+                duration: 0.8,
+                ease: 'power2.out',
+                scrollTrigger: {
+                    trigger: step,
+                    start: 'top 85%', // Starts when the top of the step hits 85% of the viewport height
+                    toggleActions: 'play none none none', // Play animation once on enter
+                }
+            });
+        });
+    }
+});
+</script>
 {% endblock %}
