@@ -175,6 +175,62 @@ body {
     border-top: 5px solid var(--primary-accent-dark);
 }
 
+.perspective-card {
+    transform-style: preserve-3d;
+    transition: transform 0.1s ease-out;
+}
+
+/* For Feature Carousel */
+.feature-carousel {
+    scroll-snap-type: x mandatory;
+    scrollbar-width: thin;
+    scrollbar-color: var(--secondary-accent-light) var(--bg-card-light);
+}
+.feature-carousel::-webkit-scrollbar {
+    height: 8px;
+}
+.feature-carousel::-webkit-scrollbar-track {
+    background: var(--bg-card-light);
+    border-radius: 4px;
+}
+.feature-carousel::-webkit-scrollbar-thumb {
+    background-color: var(--secondary-accent-light);
+    border-radius: 4px;
+}
+.dark .feature-carousel {
+    scrollbar-color: var(--secondary-accent-dark) var(--bg-card-dark);
+}
+.dark .feature-carousel::-webkit-scrollbar-track {
+    background: var(--bg-card-dark);
+}
+.dark .feature-carousel::-webkit-scrollbar-thumb {
+    background-color: var(--secondary-accent-dark);
+}
+.feature-card {
+    scroll-snap-align: start;
+}
+
+/* For Screenshot Showcase Carousel */
+.showcase-carousel .carousel-item {
+    display: none;
+    transition: opacity 0.7s ease-in-out;
+}
+.showcase-carousel .carousel-item.active {
+    display: block;
+}
+.carousel-dots {
+    bottom: -2rem;
+}
+.carousel-dot {
+    transition: background-color 0.3s ease;
+}
+.carousel-dot.active {
+    background-color: var(--primary-accent-light);
+}
+.dark .carousel-dot.active {
+    background-color: var(--primary-accent-dark);
+}
+
 @keyframes spin {
     0% { transform: rotate(0deg); }
     100% { transform: rotate(360deg); }
