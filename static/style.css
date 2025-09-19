@@ -231,6 +231,99 @@ body {
     background-color: var(--primary-accent-dark);
 }
 
+/* --- ADD THESE STYLES TO THE BOTTOM OF YOUR EXISTING style.css --- */
+
+/* For Animated Timeline Section */
+.timeline-container {
+    position: relative;
+    max-width: 1000px;
+    margin: auto;
+}
+
+/* The vertical line */
+.timeline-container::after {
+    content: '';
+    position: absolute;
+    width: 4px;
+    background-color: var(--border-color-light);
+    top: 0;
+    bottom: 0;
+    left: 50%;
+    margin-left: -2px;
+    z-index: 1;
+}
+
+.dark .timeline-container::after {
+    background-color: var(--border-color-dark);
+}
+
+/* The growing progress line for animation */
+.timeline-progress {
+    position: absolute;
+    width: 4px;
+    background-color: var(--secondary-accent-light);
+    top: 0;
+    bottom: 0;
+    left: 50%;
+    margin-left: -2px;
+    z-index: 2;
+    transform: scaleY(0);
+    transform-origin: top;
+}
+.dark .timeline-progress {
+    background-color: var(--secondary-accent-dark);
+}
+
+/* Container for each step */
+.timeline-step {
+    padding: 10px 40px;
+    position: relative;
+    width: 50%;
+    z-index: 3;
+}
+
+/* The circle on the timeline */
+.timeline-step::after {
+    content: '';
+    position: absolute;
+    width: 24px;
+    height: 24px;
+    right: -12px;
+    background-color: var(--bg-card-light);
+    border: 4px solid var(--secondary-accent-light);
+    top: 28px;
+    border-radius: 50%;
+    z-index: 4;
+}
+.dark .timeline-step::after {
+    background-color: var(--bg-card-dark);
+    border-color: var(--secondary-accent-dark);
+}
+
+
+/* Position steps on the left */
+.timeline-left {
+    left: 0;
+    text-align: right;
+}
+
+/* Position steps on the right */
+.timeline-right {
+    left: 50%;
+    text-align: left;
+}
+
+/* Adjust circle position for left-sided steps */
+.timeline-left::after {
+    left: -12px;
+}
+
+/* The content that will be animated */
+.timeline-content {
+    opacity: 0; /* Initially hidden for animation */
+    transform: translateY(20px);
+}
+
 @keyframes spin {
     0% { transform: rotate(0deg); }
     100% { transform: rotate(360deg); }
