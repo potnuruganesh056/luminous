@@ -15,6 +15,16 @@ window.RelayApp = {
         
         // Initial data fetch
         window.ApplianceAPI.fetchRoomsAndAppliances();
+
+        try {
+            const response = await fetch('/api/get-user-settings');
+            if (response.ok) {
+                const settings = await response.json();
+                window.RelayConfig.userEmail = settings.email;
+            }
+        } catch (e) {
+            console.warn("Could not fetch user settings. Email notifications may not work.");
+        }
         
         // Set up periodic data refresh
         setInterval(() => {
