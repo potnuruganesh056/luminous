@@ -1,7 +1,7 @@
 // main.js - Main application initialization and coordination
 window.RelayApp = {
     // Initialize the entire application
-    init() {
+    async init() {
         console.log('Initializing Relay Control Panel...');
         
         // Initialize QR Scanner
