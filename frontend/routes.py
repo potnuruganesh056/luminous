@@ -6,7 +6,7 @@ frontend_bp = Blueprint('frontend', __name__)
 
 @frontend_bp.route('/')
 def home():
-     """
+    """
     Renders the home page.
     This page is accessible to everyone.
     """
