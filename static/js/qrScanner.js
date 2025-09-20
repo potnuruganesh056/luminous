@@ -2,18 +2,27 @@
 window.QRScanner = {
     // Initialize QR scanner
     init() {
-        window.RelayConfig.html5QrCode = new Html5Qrcode("qr-reader");
+        // The library is loaded via CDN, so we initialize it when needed.
+        // This function can be expanded if more setup is required.
     },
 
     // Open QR scanner modal
     openQrScanner(roomId) {
         const qrModal = document.getElementById('qr-scanner-modal');
+        if (!qrModal) return;
+
+        // Lazy initialize the scanner object if it doesn't exist
+        if (!window.RelayConfig.html5QrCode) {
+            window.RelayConfig.html5QrCode = new Html5Qrcode("qr-reader");
+        }
+        
         qrModal.classList.remove('hidden');
         const config = { fps: 10, qrbox: { width: 250, height: 250 } };
         
         const onQrSuccess = (decodedText, decodedResult) => {
             window.RelayConfig.html5QrCode.stop().then(() => {
                 qrModal.classList.add('hidden');
+                // Pass the raw encrypted text to the handler
                 this.handleQrCodeData(decodedText, roomId);
             }).catch(err => console.error("Failed to stop QR scanner.", err));
         };
@@ -23,44 +32,46 @@ window.QRScanner = {
 
     // Close QR scanner modal
     closeQrScanner() {
-        window.RelayConfig.html5QrCode.stop().catch(err => {});
-        document.getElementById('qr-scanner-modal').classList.add('hidden');
+        if (window.RelayConfig.html5QrCode) {
+            window.RelayConfig.html5QrCode.stop().catch(err => {});
+        }
+        const qrModal = document.getElementById('qr-scanner-modal');
+        if(qrModal) qrModal.classList.add('hidden');
     },
 
-    // Decrypt QR code data
-    decryptQrData(encryptedText) {
-        // This is a placeholder. Replace with actual decryption logic.
+    // Handle QR code data by sending it to the backend for decryption
+    async handleQrCodeData(encryptedText, roomId) {
+        window.NotificationSystem.showLoading('Verifying board...');
         try {
-            // This example assumes the QR code contains Base64 encoded JSON.
-            const jsonString = atob(encryptedText);
-            return JSON.parse(jsonString);
-        } catch (e) {
-            console.error("Decryption/Parsing failed:", e);
-            return null;
-        }
-    },
+            // Step 1: Send encrypted data to the server to get clean JSON
+            const extractResponse = await fetch('/api/extract-qr-data', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ encrypted_data: encryptedText })
+            });
 
-    // Handle QR code data
-    async handleQrCodeData(qrText, roomId) {
-        const decryptedData = this.decryptQrData(qrText);
+            const decryptedData = await extractResponse.json();
 
-        // Validate using the new field name 'board_id'
-        if (!decryptedData || !decryptedData.board_id) {
-            window.NotificationSystem.showNotification('Invalid or unrecognized QR Code format.', 'off');
-            return;
-        }
+            if (!extractResponse.ok) {
+                throw new Error(decryptedData.error || 'Failed to decrypt board data.');
+            }
 
-        try {
-            const response = await window.ApplianceAPI.addBoard(roomId, decryptedData);
-            const result = await response.json();
-            if (response.ok) {
-                window.NotificationSystem.showNotification(result.message, 'on');
+            // Step 2: If decryption is successful, add the board to the room
+            const addResponse = await window.ApplianceAPI.addBoard(roomId, decryptedData);
+            const result = await addResponse.json();
+
+            if (addResponse.ok) {
+                window.NotificationSystem.showNotification(result.message, 'success');
                 window.ApplianceAPI.fetchRoomsAndAppliances();
             } else {
-                window.NotificationSystem.showNotification(`Error: ${result.message}`, 'off');
+                throw new Error(result.message || 'Failed to register board.');
             }
+
         } catch (error) {
-            window.NotificationSystem.showNotification('Failed to add board to the server.', 'off');
+            window.NotificationSystem.showNotification(error.message, 'error');
+            console.error("QR Handling Error:", error);
+        } finally {
+            window.NotificationSystem.hideLoading();
         }
     }
 };
