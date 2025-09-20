@@ -133,7 +133,7 @@ window.AIMonitoring = {
 
         // Start new monitoring session
         try {
-            // Prevent conflicts between global and per-room monitoring
+            // Prevent conflicts
             if (isGlobal && window.RelayConfig.activeMonitors.size > 0) {
                 window.NotificationSystem.showNotification('Please stop all active room monitors before starting global monitoring.', 'warning');
                 return;
@@ -143,7 +143,6 @@ window.AIMonitoring = {
                 return;
             }
 
-            // Get camera stream and prepare video element
             const stream = await navigator.mediaDevices.getUserMedia({ video: true });
             const videoElement = document.createElement('video');
             videoElement.srcObject = stream;
@@ -156,7 +155,6 @@ window.AIMonitoring = {
             });
             await videoElement.play();
 
-            // Create a new monitor object
             const newMonitor = {
                 stream, videoElement, isRunning: true,
                 intervalId: null, lastEmailTime: null
@@ -181,8 +179,7 @@ window.AIMonitoring = {
             window.NotificationSystem.showNotification(`Failed to start monitoring for ${name}. Check camera permissions.`, 'off');
             console.error(`Monitoring Error for scope "${scope}":`, err);
         }
-    }
-};
+    },
 
     // Detect humans in video stream
     async detectHumans(roomId) {
@@ -215,7 +212,7 @@ window.AIMonitoring = {
                 
                 await window.ApplianceAPI.sendGlobalAISignal(humanDetected);
                 
-                // Global email alerts - rate-limited to once every 10 minutes
+                // Rate-limited email alerts
                 if (!window.globalLastEmailTime) {
                     window.globalLastEmailTime = null;
                 }
@@ -230,7 +227,6 @@ window.AIMonitoring = {
                 console.error("Error during global detection:", error);
             }
             
-            // Reschedule the global loop
             if (window.RelayConfig.isGlobalMonitoringActive) {
                 window.RelayConfig.monitoringIntervalId = setTimeout(() => this.detectHumans(), window.RelayConfig.aiControlInterval);
             }
@@ -268,15 +264,11 @@ window.AIMonitoring = {
                     const statusElement = document.getElementById('monitoring-status');
                     
                     if (statusElement) {
-                        if (humanDetected) {
-                            statusElement.textContent = `Human detected in ${roomName}! AI is in control.`;
-                        } else {
-                            statusElement.textContent = `No human detected in ${roomName}. Awaiting...`;
-                        }
+                        statusElement.textContent = humanDetected ? `Human detected in ${roomName}! AI is in control.` : `No human detected in ${roomName}. Awaiting...`;
                     }
                 }
                 
-                // Rate-limit email alerts to once every 10 minutes per room
+                // Rate-limited email alerts
                 if (!monitor.lastEmailTime) {
                     monitor.lastEmailTime = null;
                 }
@@ -300,7 +292,6 @@ window.AIMonitoring = {
                 }
             }
             
-            // Reschedule the loop for this specific room
             if (monitor.isRunning) {
                 monitor.intervalId = setTimeout(() => this.detectHumans(roomId), window.RelayConfig.aiControlInterval);
             }
@@ -317,15 +308,13 @@ window.AIMonitoring = {
             alertCanvas.height = alertHeight;
             const alertCtx = alertCanvas.getContext('2d');
             
-            // Draw the video frame, scaling it down to the smaller canvas size
             alertCtx.drawImage(videoElement, 0, 0, alertWidth, alertHeight);
             
-            // Draw bounding boxes around each detected person
             alertCtx.strokeStyle = 'red';
             alertCtx.lineWidth = 2;
             alertCtx.font = '14px Arial';
             
-            humanDetections.forEach((detection, index) => {
+            humanDetections.forEach((detection) => {
                 const scaleX = alertWidth / videoElement.videoWidth;
                 const scaleY = alertHeight / videoElement.videoHeight;
                 const [x, y, width, height] = detection.bbox;
@@ -334,19 +323,15 @@ window.AIMonitoring = {
                 const scaledWidth = width * scaleX;
                 const scaledHeight = height * scaleY;
                 
-                // Draw the rectangle
                 alertCtx.strokeRect(scaledX, scaledY, scaledWidth, scaledHeight);
                 
-                // Add confidence score label
                 const confidence = Math.round(detection.score * 100);
                 const label = `Person ${confidence}%`;
                 
-                // Draw label background
                 const textMetrics = alertCtx.measureText(label);
                 alertCtx.fillStyle = 'red';
                 alertCtx.fillRect(scaledX, Math.max(scaledY - 18, 0), textMetrics.width + 6, 18);
                 
-                // Draw label text
                 alertCtx.fillStyle = 'white';
                 alertCtx.fillText(label, scaledX + 3, Math.max(scaledY - 3, 15));
             });
@@ -362,4 +347,6 @@ window.AIMonitoring = {
         } catch (emailError) {
             console.error(`Failed to send detection email:`, emailError);
         }
-    },
+    }
+};
+
