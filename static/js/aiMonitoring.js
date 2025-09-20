@@ -12,7 +12,7 @@ window.AIMonitoring = {
         } catch (error) {
             console.error('Failed to load model:', error);
             window.NotificationSystem.showNotification('Failed to load AI model.', 'off');
-        }
+        },
 
     // Toggle global monitoring
     async toggleGlobalMonitoring() {
