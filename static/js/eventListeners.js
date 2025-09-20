@@ -34,7 +34,7 @@ window.EventListeners = {
         const startMonitoringBtn = document.getElementById('start-monitoring-btn');
 
         if (globalMonitoringBtn) {
-            globalMonitoringBtn.addEventListener('click', window.AIMonitoring.toggleGlobalMonitoring);
+            globalMonitoringBtn.addEventListener('click', () => window.AIMonitoring.toggleGlobalMonitoring());
         }
         if (startMonitoringBtn) {
             startMonitoringBtn.addEventListener('click', () => {
