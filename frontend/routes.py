@@ -1,5 +1,5 @@
 from flask import Blueprint, render_template, request
-from flask_login import login_required
+from flask_login import login_required, current_user
 from utils.helpers import get_current_user_theme, get_user_data
 
 frontend_bp = Blueprint('frontend', __name__)
