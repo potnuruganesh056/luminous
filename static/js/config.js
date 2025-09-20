@@ -43,6 +43,8 @@ window.RelayConfig = {
     currentAction: null,
     currentData: null,
     pendingGlobalAction: null,
+
+    userEmail: null,
     
     // QR Scanner
     html5QrCode: null
