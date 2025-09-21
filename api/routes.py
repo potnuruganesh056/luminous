@@ -355,60 +355,60 @@ def set_appliance_state():
 @api_bp.route('/update-appliance-settings', methods=['POST'])
 @login_required
 def update_appliance_settings():
-    """Update appliance settings including name, relay, and room assignment"""
-    try:
-        req_data = request.get_json()
+    data = request.get_json()
+    required_keys = ['room_id', 'appliance_id', 'name', 'board_id', 'relay_id', 'new_room_id']
+    if not all(key in data for key in required_keys):
+        return jsonify({"status": "error", "message": "Missing required fields."}), 400
+
+    all_data = get_all_data_from_db()
+    all_boards = get_all_boards_from_db()
+    user_data = all_data.get(current_user.id)
+    
+    original_room = next((r for r in user_data['rooms'] if r['id'] == data['room_id']), None)
+    if not original_room: return jsonify({"status": "error", "message": "Original room not found."}), 404
         
-        # Handle both legacy and new API formats
-        if 'relay_number' in req_data:
-            # Legacy format
-            required_keys = ['room_id', 'appliance_id', 'name', 'relay_number', 'new_room_id']
-        else:
-            # New format
-            required_keys = ['room_id', 'appliance_id', 'name', 'board_id', 'relay_id', 'new_room_id']
-            
-        if not all(key in req_data for key in required_keys):
-            return jsonify({"status": "error", "message": "Missing required fields."}), 400
+    appliance = next((a for a in original_room['appliances'] if a['id'] == data['appliance_id']), None)
+    if not appliance: return jsonify({"status": "error", "message": "Appliance not found."}), 404
 
-        all_data = get_all_data_from_db()
-        user_data = all_data.get(current_user.id)
-        if not user_data:
-            return jsonify({"status": "error", "message": "User data not found."}), 404
+    # --- LOGIC TO SWAP RELAYS ---
+    old_board_id = appliance.get('board_id')
+    old_relay_id = appliance.get('relay_id')
+    new_board_id = data['board_id']
+    new_relay_id = data['relay_id']
 
-        original_room = next((r for r in user_data['rooms'] if r['id'] == req_data['room_id']), None)
-        if not original_room:
-            return jsonify({"status": "error", "message": "Original room not found."}), 404
+    # Free up the old relay if it's being changed
+    if old_board_id != new_board_id or old_relay_id != new_relay_id:
+        if old_board_id in all_boards:
+            old_board = all_boards[old_board_id]
+            old_relay = next((r for r in old_board.get('relays', []) if r['id'] == old_relay_id), None)
+            if old_relay:
+                old_relay['is_occupied'] = False
         
-        appliance = next((a for a in original_room['appliances'] if a['id'] == req_data['appliance_id']), None)
-        if not appliance:
-            return jsonify({"status": "error", "message": "Appliance not found."}), 404
+        # Occupy the new relay
+        if new_board_id in all_boards:
+            new_board = all_boards[new_board_id]
+            new_relay = next((r for r in new_board.get('relays', []) if r['id'] == new_relay_id), None)
+            if not new_relay or new_relay.get('is_occupied'):
+                return jsonify({"status": "error", "message": "The new relay is unavailable or already occupied."}), 409
+            new_relay['is_occupied'] = True
+
+    # Update appliance properties
+    appliance['name'] = data['name']
+    appliance['board_id'] = new_board_id
+    appliance['relay_id'] = new_relay_id
+
+    # Move to a different room if requested
+    if data['new_room_id'] != data['room_id']:
+        target_room = next((r for r in user_data['rooms'] if r['id'] == data['new_room_id']), None)
+        if not target_room: return jsonify({"status": "error", "message": "Target room not found."}), 404
         
-        # Update appliance properties
-        appliance['name'] = str(req_data['name'])
-        
-        # Handle both legacy and new relay assignment
-        if 'relay_number' in req_data:
-            appliance['relay_number'] = int(req_data['relay_number'])
-        else:
-            appliance['board_id'] = req_data['board_id']
-            appliance['relay_id'] = req_data['relay_id']
+        target_room.setdefault('appliances', []).append(appliance)
+        original_room['appliances'] = [a for a in original_room['appliances'] if a['id'] != data['appliance_id']]
 
-        # Move to different room if requested
-        if req_data['new_room_id'] != req_data['room_id']:
-            target_room = next((r for r in user_data['rooms'] if r['id'] == req_data['new_room_id']), None)
-            if not target_room:
-                return jsonify({"status": "error", "message": "Target room not found."}), 404
-            
-            target_room['appliances'].append(appliance)
-            original_room['appliances'] = [a for a in original_room['appliances'] if a['id'] != req_data['appliance_id']]
+    save_all_data_to_db(all_data)
+    save_all_boards_to_db(all_boards)
+    return jsonify({"status": "success", "message": "Appliance settings updated."})
 
-        save_all_data_to_db(all_data)
-        return jsonify({"status": "success", "message": "Appliance settings updated."}), 200
-
-    except (ValueError, TypeError, KeyError) as e:
-        return jsonify({"status": "error", "message": "Invalid data format."}), 400
-    except Exception as e:
-        return jsonify({"status": "error", "message": "An internal server error occurred."}), 500
 
 @api_bp.route('/save-appliance-order', methods=['POST'])
 @login_required
