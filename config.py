@@ -17,7 +17,8 @@ class Config:
     ADMIN_PASSWORD = os.getenv('ADMIN_PASSWORD')
     ADMIN_EMAIL = os.getenv('ADMIN_EMAIL')
     ADMIN_GOOGLE_ID = os.getenv('ADMIN_GOOGLE_ID')
-    
+    ADMIN_GITHUB_ID = os.getenv('ADMIN_GITHUB_ID') # Optional: The numeric ID from a GitHub account
+   
     
     # Session Configuration
     REMEMBER_COOKIE_DURATION = timedelta(days=7)
