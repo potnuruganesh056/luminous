@@ -9,6 +9,20 @@ from database.redis_db import redis_client, migrate_json_to_redis
 from auth.models import User, load_user
 from mqtt.client import run_mqtt_thread
 
+# Import and register blueprints
+from admin.init_admin import init_admin
+from auth.routes import auth_bp
+from api.routes import api_bp
+from api.ai_routes import ai_api_bp
+from frontend.routes import frontend_bp
+from oauth.routes import oauth_bp
+from analytics.routes import analytics_bp
+from admin.routes import admin_bp             # <-- IMPORT ADMIN FRONTEND
+from admin.api_routes import admin_api_bp     # <-- IMPORT ADMIN API
+
+# Configure OAuth providers
+from oauth.providers import configure_oauth_providers
+
 # --- Application Setup ---
 app = Flask(__name__)
 app.config.from_object(Config)
@@ -23,16 +37,6 @@ mail = Mail(app)
 # OAuth Configuration
 oauth = OAuth(app)
 
-# Import and register blueprints
-from auth.routes import auth_bp
-from api.routes import api_bp
-from api.ai_routes import ai_api_bp
-from frontend.routes import frontend_bp
-from oauth.routes import oauth_bp
-from analytics.routes import analytics_bp
-from admin.routes import admin_bp             # <-- IMPORT ADMIN FRONTEND
-from admin.api_routes import admin_api_bp     # <-- IMPORT ADMIN API
-
 app.register_blueprint(auth_bp)
 app.register_blueprint(api_bp, url_prefix='/api')
 app.register_blueprint(ai_api_bp, url_prefix='/api')
@@ -42,8 +46,6 @@ app.register_blueprint(analytics_bp, url_prefix='/api')
 app.register_blueprint(admin_bp)              # <-- REGISTER ADMIN FRONTEND
 app.register_blueprint(admin_api_bp, url_prefix='/api') # <-- REGISTER ADMIN API
 
-# Configure OAuth providers
-from oauth.providers import configure_oauth_providers
 configure_oauth_providers(oauth)
 
 if __name__ == '__main__':
