@@ -27,11 +27,18 @@ def generate_board():
     number_of_relays = int(data.get('relay_count', 4))
     
     board_id = uuid.uuid4().hex[:8]
-    relay_ids = [uuid.uuid4().hex[:16] for _ in range(number_of_relays)]
+    relays = [
+        {"id": uuid.uuid4().hex[:16], "name": f"Relay {i+1}", "is_occupied": False}
+        for i in range(number_of_relays)
+    ]
     
     board_data = {
-        "board_id": board_id, "number_of_relays": number_of_relays,
-        "version_number": "1.0.0", "build_number": 1, "relay_ids": relay_ids
+        "board_id": board_id,
+        "number_of_relays": number_of_relays,
+        "version_number": "1.0.0",
+        "build_number": 1,
+        "relays": relays, # <-- Use the new list of objects
+        "additional_features": {}
     }
     
     all_boards = get_all_boards_from_db()
