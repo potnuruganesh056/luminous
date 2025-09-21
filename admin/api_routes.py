@@ -11,7 +11,7 @@ from database.redis_db import (
 )
 from flask_login import current_user
 
-admin_api_bp = Blueprint('admin_api', __name__, url_prefix='/admin')
+admin_api_bp = Blueprint('admin_api', __name__)
 
 def get_all_boards_from_db():
     boards_json = redis_client.get('boards')
