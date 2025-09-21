@@ -80,8 +80,11 @@ window.EventListeners = {
                     const result = await response.json();
                     if (response.ok) {
                         window.NotificationSystem.showNotification(result.message, 'success');
+                        // 1. Close the modal so the user can't submit the same data again.
                         window.DOMHelpers.toggleElementVisibility('add-appliance-modal', false);
-                        window.ApplianceAPI.fetchDashboardData();
+                        
+                        // 2. Fetch fresh data to update the UI and available relay list.
+                        await window.ApplianceAPI.fetchDashboardData();
                     } else {
                         throw new Error(result.message);
                     }
