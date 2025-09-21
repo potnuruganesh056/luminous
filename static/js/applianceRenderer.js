@@ -46,6 +46,8 @@ window.ApplianceRenderer = {
 
         // Update monitoring UI state
         window.DOMHelpers.updateMonitoringUIState();
+
+        window.DOMHelpers.updateFabVisibility('appliances');
     },
 
     // Create individual appliance card
