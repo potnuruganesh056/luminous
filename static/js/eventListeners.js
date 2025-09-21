@@ -1,7 +1,53 @@
 // eventListeners.js - Event listener management
 window.EventListeners = {
-    // Initialize all event listeners
     init() {
+        // --- MODIFICATION: Corrected FAB Logic ---
+        const fabMainBtn = document.getElementById('fab-main-btn');
+        const fabOptions = document.getElementById('fab-options');
+        fabMainBtn.addEventListener('click', () => {
+            const isVisible = fabOptions.style.display === 'flex';
+            
+            // The fix is to use an if/else block to handle both states
+            if (isVisible) {
+                // Hide the options
+                fabOptions.style.opacity = '0';
+                fabOptions.style.transform = 'translateY(10px)';
+                setTimeout(() => { fabOptions.style.display = 'none'; }, 200); // Hide after transition
+            } else {
+                // Show the options
+                fabOptions.style.display = 'flex';
+                // Use a tiny timeout to allow the 'display' change to apply before animating
+                setTimeout(() => {
+                    fabOptions.style.opacity = '1';
+                    fabOptions.style.transform = 'translateY(0)';
+                }, 10);
+            }
+            fabMainBtn.classList.toggle('rotate-45');
+        });
+        // --- END MODIFICATION ---
+        // Add Room Button
+        document.getElementById('add-room-btn').addEventListener('click', () => {
+            window.Modals.openAddRoomModal();
+            // Hide the FAB menu after an option is clicked
+            fabOptions.style.display = 'none'; 
+            fabMainBtn.classList.remove('rotate-45');
+        });
+        // Add Appliance Button
+        document.getElementById('add-appliance-btn').addEventListener('click', () => {
+            window.Modals.openAddApplianceModal();
+            // Hide the FAB menu after an option is clicked
+            fabOptions.style.display = 'none';
+            fabMainBtn.classList.remove('rotate-45');
+        });
+        
+        // Register Board Button
+        document.getElementById('register-board-btn').addEventListener('click', () => {
+            window.Modals.openRegisterBoardModal(window.RelayConfig.currentRoomId);
+            // Hide the FAB menu after an option is clicked
+            fabOptions.style.display = 'none';
+            fabMainBtn.classList.remove('rotate-45');
+        });
+        
         this.initWebcamListeners();
         this.initMonitoringListeners();
         this.initNavigationListeners();
