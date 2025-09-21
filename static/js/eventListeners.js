@@ -1,22 +1,18 @@
 // eventListeners.js - Event listener management
 window.EventListeners = {
     init() {
-        // --- MODIFICATION: Corrected FAB Logic ---
+        // FAB Menu Logic with helper function
         const fabMainBtn = document.getElementById('fab-main-btn');
         const fabOptions = document.getElementById('fab-options');
+        
         fabMainBtn.addEventListener('click', () => {
             const isVisible = fabOptions.style.display === 'flex';
-            
-            // The fix is to use an if/else block to handle both states
             if (isVisible) {
-                // Hide the options
                 fabOptions.style.opacity = '0';
                 fabOptions.style.transform = 'translateY(10px)';
-                setTimeout(() => { fabOptions.style.display = 'none'; }, 200); // Hide after transition
+                setTimeout(() => { fabOptions.style.display = 'none'; }, 200);
             } else {
-                // Show the options
                 fabOptions.style.display = 'flex';
-                // Use a tiny timeout to allow the 'display' change to apply before animating
                 setTimeout(() => {
                     fabOptions.style.opacity = '1';
                     fabOptions.style.transform = 'translateY(0)';
@@ -24,33 +20,35 @@ window.EventListeners = {
             }
             fabMainBtn.classList.toggle('rotate-45');
         });
-        // --- END MODIFICATION ---
-        // Add Room Button
+
+        // Helper function to hide FAB menu (your optimization)
+        const hideFabMenu = () => {
+            fabOptions.style.display = 'none';
+            fabMainBtn.classList.remove('rotate-45');
+        };
+
+        // FAB Action Buttons
         document.getElementById('add-room-btn').addEventListener('click', () => {
             window.Modals.openAddRoomModal();
-            // Hide the FAB menu after an option is clicked
-            fabOptions.style.display = 'none'; 
-            fabMainBtn.classList.remove('rotate-45');
+            hideFabMenu();
         });
-        // Add Appliance Button
+        
         document.getElementById('add-appliance-btn').addEventListener('click', () => {
             window.Modals.openAddApplianceModal();
-            // Hide the FAB menu after an option is clicked
-            fabOptions.style.display = 'none';
-            fabMainBtn.classList.remove('rotate-45');
+            hideFabMenu();
         });
         
-        // Register Board Button
         document.getElementById('register-board-btn').addEventListener('click', () => {
             window.Modals.openRegisterBoardModal(window.RelayConfig.currentRoomId);
-            // Hide the FAB menu after an option is clicked
-            fabOptions.style.display = 'none';
-            fabMainBtn.classList.remove('rotate-45');
+            hideFabMenu();
         });
-        
+
+        // Navigation
+        document.getElementById('back-to-rooms-btn').addEventListener('click', window.RoomRenderer.backToRooms);
+
+        // Initialize other listener groups
         this.initWebcamListeners();
         this.initMonitoringListeners();
-        this.initNavigationListeners();
         this.initModalListeners();
         this.initFormListeners();
         this.initQRListeners();
@@ -89,65 +87,37 @@ window.EventListeners = {
         }
     },
 
-    // Navigation event listeners
-    initNavigationListeners() {
-        const backToRoomsBtn = document.getElementById('back-to-rooms-btn');
-        if (backToRoomsBtn) {
-            backToRoomsBtn.addEventListener('click', window.RoomRenderer.backToRooms);
-        }
-    },
-
     // Modal-related event listeners
     initModalListeners() {
-        // Add Room Modal
-        const addRoomBtn = document.getElementById('add-room-btn');
-        const cancelRoomBtn = document.getElementById('cancel-room-btn');
-        if (addRoomBtn) {
-            addRoomBtn.addEventListener('click', () => {
-                window.DOMHelpers.toggleElementVisibility('add-room-modal', true);
-            });
-        }
-        if (cancelRoomBtn) {
-            cancelRoomBtn.addEventListener('click', () => {
-                window.DOMHelpers.toggleElementVisibility('add-room-modal', false);
-            });
-        }
+        // Cancel buttons for various modals
+        const cancelButtons = [
+            { id: 'cancel-room-btn', modal: 'add-room-modal' },
+            { id: 'cancel-appliance-btn', modal: 'add-appliance-modal' },
+            { id: 'cancel-room-settings-btn', modal: 'settings-room-modal' },
+            { id: 'cancel-appliance-settings-btn', modal: 'settings-appliance-modal' },
+            { id: 'cancel-timer-btn', modal: 'timer-modal' }
+        ];
 
-        // Add Appliance Modal
-        const addApplianceBtn = document.getElementById('add-appliance-btn');
-        const cancelApplianceBtn = document.getElementById('cancel-appliance-btn');
-        if (addApplianceBtn) {
-            addApplianceBtn.addEventListener('click', window.ApplianceActions.handleAddAppliance);
-        }
-        if (cancelApplianceBtn) {
-            cancelApplianceBtn.addEventListener('click', () => {
-                window.DOMHelpers.toggleElementVisibility('add-appliance-modal', false);
-            });
-        }
+        cancelButtons.forEach(({ id, modal }) => {
+            const btn = document.getElementById(id);
+            if (btn) {
+                btn.addEventListener('click', () => {
+                    window.DOMHelpers.toggleElementVisibility(modal, false);
+                });
+            }
+        });
 
-        // Room Settings Modal
-        const cancelRoomSettingsBtn = document.getElementById('cancel-room-settings-btn');
+        // Delete buttons
         const deleteRoomBtn = document.getElementById('delete-room-btn');
-        if (cancelRoomSettingsBtn) {
-            cancelRoomSettingsBtn.addEventListener('click', () => {
-                window.DOMHelpers.toggleElementVisibility('settings-room-modal', false);
-            });
-        }
+        const deleteApplianceBtn = document.getElementById('delete-appliance-btn');
+        
         if (deleteRoomBtn) {
             deleteRoomBtn.addEventListener('click', () => {
                 const roomId = document.getElementById('edit-room-id').value;
                 window.ConfirmationModal.openConfirmationModal('delete-room', roomId);
             });
         }
-
-        // Appliance Settings Modal
-        const cancelApplianceSettingsBtn = document.getElementById('cancel-appliance-settings-btn');
-        const deleteApplianceBtn = document.getElementById('delete-appliance-btn');
-        if (cancelApplianceSettingsBtn) {
-            cancelApplianceSettingsBtn.addEventListener('click', () => {
-                window.DOMHelpers.toggleElementVisibility('settings-appliance-modal', false);
-            });
-        }
+        
         if (deleteApplianceBtn) {
             deleteApplianceBtn.addEventListener('click', () => {
                 const roomId = document.getElementById('settings-edit-room-id').value;
@@ -156,15 +126,7 @@ window.EventListeners = {
             });
         }
 
-        // Timer Modal
-        const cancelTimerBtn = document.getElementById('cancel-timer-btn');
-        if (cancelTimerBtn) {
-            cancelTimerBtn.addEventListener('click', () => {
-                window.DOMHelpers.toggleElementVisibility('timer-modal', false);
-            });
-        }
-
-        // Confirmation Modal
+        // Confirmation modal
         const confirmCancelBtn = document.getElementById('confirm-cancel-btn');
         const confirmActionBtn = document.getElementById('confirm-action-btn');
         if (confirmCancelBtn) {
@@ -177,35 +139,20 @@ window.EventListeners = {
 
     // Form event listeners
     initFormListeners() {
-        // Add Room Form
-        const addRoomForm = document.getElementById('add-room-form');
-        if (addRoomForm) {
-            addRoomForm.addEventListener('submit', window.RoomActions.handleAddRoomSubmit);
-        }
+        const forms = [
+            { id: 'add-room-form', handler: window.RoomActions.handleAddRoomSubmit },
+            { id: 'add-appliance-form', handler: window.ApplianceActions.handleAddApplianceSubmit },
+            { id: 'settings-room-form', handler: window.RoomSettings.handleRoomSettingsSubmit },
+            { id: 'settings-appliance-form', handler: window.ApplianceSettings.handleApplianceSettingsSubmit },
+            { id: 'timer-form', handler: window.TimerModal.handleTimerSubmit }
+        ];
 
-        // Add Appliance Form
-        const addApplianceForm = document.getElementById('add-appliance-form');
-        if (addApplianceForm) {
-            addApplianceForm.addEventListener('submit', window.ApplianceActions.handleAddApplianceSubmit);
-        }
-
-        // Room Settings Form
-        const settingsRoomForm = document.getElementById('settings-room-form');
-        if (settingsRoomForm) {
-            settingsRoomForm.addEventListener('submit', window.RoomSettings.handleRoomSettingsSubmit);
-        }
-
-        // Appliance Settings Form
-        const settingsApplianceForm = document.getElementById('settings-appliance-form');
-        if (settingsApplianceForm) {
-            settingsApplianceForm.addEventListener('submit', window.ApplianceSettings.handleApplianceSettingsSubmit);
-        }
-
-        // Timer Form
-        const timerForm = document.getElementById('timer-form');
-        if (timerForm) {
-            timerForm.addEventListener('submit', window.TimerModal.handleTimerSubmit);
-        }
+        forms.forEach(({ id, handler }) => {
+            const form = document.getElementById(id);
+            if (form) {
+                form.addEventListener('submit', handler);
+            }
+        });
     },
 
     // QR-related event listeners
