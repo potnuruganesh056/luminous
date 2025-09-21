@@ -91,21 +91,19 @@ window.RoomRenderer = {
 
     // Create individual board card
     createBoardCard(board) {
-        const roomName = board.room_id ? window.RelayConfig.allRoomsData.find(r => r.id === board.room_id)?.name || 'N/A' : 'Unassigned';
-        return window.DOMHelpers.createElement('div', {
+        const roomName = window.RelayConfig.allRoomsData.find(r => r.id === board.room_id)?.name || 'N/A';
+        const card = window.DOMHelpers.createElement('div', {
             'data-id': board.board_id,
-            className: "bg-card text-card-foreground rounded-xl border p-6 shadow-sm transition-all flex flex-col",
+            className: "bg-card text-card-foreground rounded-xl border p-4 shadow-sm flex items-center justify-between",
             innerHTML: `
-                <div class="flex items-center justify-between mb-4">
-                    <h3 class="text-lg font-bold font-mono">${board.board_id}</h3>
-                    <button class="p-1 rounded-full hover:bg-muted" title="Unregister Board" onclick="window.Modals.openConfirmationModal('unregister-board', '${board.board_id}')"><i class="fas fa-trash-alt text-red-400"></i></button>
+                <div>
+                    <p class="font-bold">${board.board_id}</p>
+                    <p class="text-sm text-muted-foreground">Room: ${roomName}</p>
                 </div>
-                <div class="text-sm text-muted-foreground space-y-1 flex-grow">
-                    <p>Assigned to: <strong>${roomName}</strong></p>
-                    <p><strong>${board.number_of_relays}</strong> Relays Total</p>
-                </div>
+                <button class="text-red-500 hover:text-red-700 font-bold" onclick="event.stopPropagation(); window.Modals.openConfirmationModal('unregister-board', '${board.board_id}')">Unregister</button>
             `
         });
+        return card;
     },
     
     // Calculate room statistics
