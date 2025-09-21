@@ -331,6 +331,37 @@
         </div>
     </div>
 
+    <!-- APPLIANCE SETTINGS MODAL (This was missing) -->
+    <div id="settings-appliance-modal" class="fixed inset-0 bg-gray-900 bg-opacity-70 flex items-center justify-center hidden z-50">
+        <div class="bg-card p-6 rounded-lg shadow-xl w-96">
+            <h3 class="text-xl font-bold mb-4">Edit Appliance Settings</h3>
+            <form id="settings-appliance-form" class="space-y-4">
+                <input type="hidden" id="edit-appliance-id">
+                <input type="hidden" id="settings-edit-room-id">
+                <div>
+                    <label for="edit-appliance-name" class="block text-sm font-medium mb-1">Appliance Name</label>
+                    <input type="text" id="edit-appliance-name" class="w-full p-2 border rounded-md bg-gray-100 dark:bg-gray-700" required>
+                </div>
+                <div>
+                    <label for="edit-room-selector" class="block text-sm font-medium mb-1">Change Room</label>
+                    <select id="edit-room-selector" class="w-full p-2 border rounded-md bg-gray-100 dark:bg-gray-700"></select>
+                </div>
+                <div class="advanced-settings-toggle cursor-pointer font-semibold text-secondary-accent hover:underline">Advanced Settings <i class="fas fa-caret-down"></i></div>
+                <div id="advanced-settings" class="hidden pt-2 border-t mt-2">
+                    <label for="edit-appliance-relay" class="block text-sm font-medium mb-1">Change Relay</label>
+                    <select id="edit-appliance-relay" class="w-full p-2 border rounded-md bg-gray-100 dark:bg-gray-700"></select>
+                </div>
+                <div class="flex justify-between space-x-4 mt-6">
+                    <button type="button" id="delete-appliance-btn" class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700">Delete</button>
+                    <div>
+                        <button type="button" class="px-4 py-2 bg-gray-300 dark:bg-gray-600 rounded-lg" onclick="window.DOMHelpers.toggleElementVisibility('settings-appliance-modal', false)">Cancel</button>
+                        <button type="submit" class="px-4 py-2 bg-secondary-accent text-white rounded-lg">Save</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <!-- General Purpose Confirmation Modal -->
     <div id="confirmation-modal" class="fixed inset-0 bg-gray-900 bg-opacity-70 flex items-center justify-center hidden z-[100]">
         <div class="bg-card p-6 rounded-lg shadow-xl w-80 max-w-sm mx-auto">
