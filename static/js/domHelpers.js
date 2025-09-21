@@ -123,5 +123,26 @@ window.DOMHelpers = {
                 control.removeAttribute('disabled');
             }
         });
+    },
+
+    // NEW FUNCTION to control which FAB options are visible
+    updateFabVisibility(view) {
+        const addApplianceOption = this.getElementById('fab-option-add-appliance');
+        const registerBoardOption = this.getElementById('fab-option-register-board');
+        const addRoomOption = this.getElementById('fab-option-add-room');
+        
+        if (!addApplianceOption || !registerBoardOption || !addRoomOption) return;
+        
+        if (view === 'appliances') {
+            // Inside a room: show appliance and board options
+            addApplianceOption.style.display = 'flex';
+            registerBoardOption.style.display = 'flex';
+            addRoomOption.style.display = 'none';
+        } else { // 'rooms' view
+            // On the main page: only show add room
+            addApplianceOption.style.display = 'none';
+            registerBoardOption.style.display = 'none';
+            addRoomOption.style.display = 'flex';
+        }
     }
 };
