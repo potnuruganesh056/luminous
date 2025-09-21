@@ -40,11 +40,6 @@ def create_default_user_data(name, email, picture=None):
             "id": "1",
             "name": "Hall",
             "ai_control": False,
-            "appliances": [
-                {"id": "1", "name": "Main Light", "state": False, "locked": False, "timer": None, "relay_number": 1},
-                {"id": "2", "name": "Fan", "state": False, "locked": False, "timer": None, "relay_number": 2},
-                {"id": "3", "name": "Night Lamp", "state": False, "locked": False, "timer": None, "relay_number": 3},
-                {"id": "4", "name": "A/C", "state": False, "locked": False, "timer": None, "relay_number": 4}
-            ]
+            "appliances": []
         }]
     }
