@@ -38,7 +38,7 @@ window.ApplianceRenderer = {
             
         } else {
             container.innerHTML = `
-                <p class="text-center text-gray-500">
+                <p class="text-center text-gray-500 col-span-full">
                     No appliances in this room yet. Click "Add Appliance" to get started!
                 </p>
             `;
