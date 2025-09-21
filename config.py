@@ -39,7 +39,7 @@ class Config:
     GEMINI_API_KEY = ""  # Your API Key will be automatically provided by the Canvas environment
     
     # MQTT Configuration
-    MQTT_BROKER = "mqtt.eclipse.org"
+    MQTT_BROKER = "mqtt.eclipseprojects.io"
     MQTT_PORT = 1883
     MQTT_TOPIC_COMMAND = "lumino_us/commands"
     MQTT_TOPIC_STATUS = "lumino_us/status"
