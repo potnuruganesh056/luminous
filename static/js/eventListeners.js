@@ -37,6 +37,11 @@ window.EventListeners = {
             window.Modals.openAddApplianceModal();
             hideFabMenu();
         });
+
+        const registerBoardForm = document.getElementById('register-board-form');
+        if (registerBoardForm) {
+            registerBoardForm.addEventListener('submit', window.Modals.handleRegisterBoardSubmit);
+        }
         
         document.getElementById('register-board-btn').addEventListener('click', () => {
             window.Modals.openRegisterBoardModal(window.RelayConfig.currentRoomId);
@@ -45,6 +50,15 @@ window.EventListeners = {
 
         // Navigation
         document.getElementById('back-to-rooms-btn').addEventListener('click', window.RoomRenderer.backToRooms);
+
+        // QR Scanner button inside the modal
+        const scanQrForRegisterBtn = document.getElementById('scan-qr-for-register-btn');
+        if(scanQrForRegisterBtn) {
+            scanQrForRegisterBtn.addEventListener('click', () => {
+                // Tell the scanner which input field to populate
+                window.QRScanner.openQrScanner('board-id-manual');
+            });
+        }
 
         // Initialize other listener groups
         this.initWebcamListeners();
