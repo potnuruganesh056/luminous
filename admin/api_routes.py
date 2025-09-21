@@ -37,6 +37,7 @@ def generate_board():
         "number_of_relays": number_of_relays,
         "version_number": "1.0.0",
         "build_number": 1,
+        "owner_id": None,
         "relays": relays, # <-- Use the new list of objects
         "additional_features": {}
     }
