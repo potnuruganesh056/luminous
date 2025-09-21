@@ -60,6 +60,39 @@ window.EventListeners = {
             });
         }
 
+        const addApplianceForm = document.getElementById('add-appliance-form');
+        if (addApplianceForm) {
+            addApplianceForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const roomId = window.RelayConfig.currentRoomId;
+                const name = document.getElementById('new-appliance-name').value;
+                const boardId = document.getElementById('board-selector').value;
+                const relayId = document.getElementById('relay-selector').value;
+
+                if (!name || !boardId || !relayId) {
+                    window.NotificationSystem.showNotification('Please fill out all fields.', 'error');
+                    return;
+                }
+
+                window.NotificationSystem.showLoading('Adding appliance...');
+                try {
+                    const response = await window.ApplianceAPI.addAppliance(roomId, name, boardId, relayId);
+                    const result = await response.json();
+                    if (response.ok) {
+                        window.NotificationSystem.showNotification(result.message, 'success');
+                        window.DOMHelpers.toggleElementVisibility('add-appliance-modal', false);
+                        window.ApplianceAPI.fetchDashboardData();
+                    } else {
+                        throw new Error(result.message);
+                    }
+                } catch (error) {
+                    window.NotificationSystem.showNotification(error.message, 'error');
+                } finally {
+                    window.NotificationSystem.hideLoading();
+                }
+            });
+        }
+
         // Initialize other listener groups
         this.initWebcamListeners();
         this.initMonitoringListeners();
