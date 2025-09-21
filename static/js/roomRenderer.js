@@ -37,6 +37,9 @@ window.RoomRenderer = {
         
         // After rendering, update the FAB to show the correct options for this view
         window.DOMHelpers.updateFabVisibility('rooms');
+
+        // Set FAB visibility for the main rooms view
+        window.DOMHelpers.updateFabVisibility('rooms');
     },
 
     // Render boards in the boards view
