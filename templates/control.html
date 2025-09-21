@@ -4,9 +4,7 @@
 
 {% block content %}
 <style>
-    /*
-     * Custom ghost class for Sortable.js
-     */
+    /* Custom ghost class for Sortable.js */
     .sortable-ghost {
         background-color: var(--bg-muted-light);
         opacity: 0.5;
@@ -15,9 +13,8 @@
         background-color: var(--bg-muted-dark);
         opacity: 0.5;
     }
-    /*
-     * Custom style for the toggle switch
-     */
+
+    /* Custom style for the toggle switch */
     .custom-toggle-switch {
         position: relative;
         display: inline-block;
@@ -65,7 +62,7 @@
         transform: translateX(26px);
     }
 
-    /* Webcam and Monitoring styles (unchanged) */
+    /* Webcam and Monitoring styles */
     #webcam-card-container {
         position: fixed;
         bottom: 20px;
@@ -92,6 +89,7 @@
         max-width: 500px;
     }
 
+    /* Styles for the Dropdown Floating Action Button (FAB) */
     .fab-container {
         position: fixed;
         bottom: 2.5rem;
@@ -151,25 +149,17 @@
         animation: pulse-glow 2s infinite;
         border-color: #16a34a;
     }
-
-    /* MODIFICATION: Style for the new floating Add Room button */
-    #add-room-btn-container {
-        position: fixed;
-        /* Positioned higher to avoid notifications which usually appear at bottom: 1rem */
-        bottom: 2.5rem; /* 40px */
-        right: 2.5rem; /* 40px */
-        z-index: 50;
-    }
 </style>
 
 <div class="container mx-auto">
+    <!-- Main Header -->
     <div class="text-center mb-8">
         <h1 class="text-4xl font-extrabold mb-2 text-primary-accent">Relay Control Panel</h1>
         <p class="text-gray-700 dark:text-gray-300">Manage your rooms and appliances.</p>
     </div>
 
+    <!-- Rooms View (Main View) -->
     <div id="rooms-view" class="transition-transform duration-500">
-
         <div class="text-center mb-4">
             <h2 class="text-3xl font-bold text-text-card-foreground">Room Center</h2>
         </div>
@@ -195,21 +185,16 @@
             <!-- Room cards will be dynamically inserted here -->
         </div>
 
-        <!-- NEW: My Boards Section -->
+        <!-- My Boards Section -->
         <div id="boards-section" class="mt-16">
             <h2 class="text-3xl font-bold text-center mb-8">My Registered Boards</h2>
             <div id="boards-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 <!-- Board cards will be dynamically inserted here -->
             </div>
         </div>
-
-        <div id="add-room-btn-container">
-             <button id="add-room-btn" class="bg-secondary-accent text-white px-6 py-3 rounded-full font-semibold shadow-lg hover:bg-opacity-80 transition-colors flex items-center">
-                <i class="fas fa-plus-circle mr-2"></i>Add Room
-            </button>
-        </div>
     </div>
     
+    <!-- Appliances View (Hidden by default) -->
     <div id="appliances-view" class="hidden transition-transform duration-500">
         <div class="flex flex-col items-center mb-4">
             <div class="w-full flex justify-between items-center mb-4">
@@ -248,42 +233,30 @@
         </div>
 
         <div id="appliance-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            </div>
-        <button id="add-appliance-btn" class="fixed bottom-8 right-8 bg-secondary-accent text-white px-6 py-3 rounded-full font-semibold shadow-lg hover:bg-opacity-80 transition-colors">
-            <i class="fas fa-plus mr-2"></i> Add Appliance
-        </button>
+            <!-- Appliance cards will be dynamically inserted here -->
+        </div>
     </div>
 
-    <!-- NEW: Dropdown Floating Action Button (FAB) -->
+    <!-- Dropdown Floating Action Button (FAB) -->
     <div class="fab-container">
         <div id="fab-options" class="fab-options">
-            <!-- Add Appliance Option -->
             <div id="add-appliance-option" class="fab-option">
                 <span class="fab-label">Add Appliance</span>
-                <button id="add-appliance-btn" class="fab-icon bg-secondary-accent text-white">
-                    <i class="fas fa-plug"></i>
-                </button>
+                <button id="add-appliance-btn" class="fab-icon bg-secondary-accent text-white"><i class="fas fa-plug"></i></button>
             </div>
-            <!-- Add Board Option -->
             <div class="fab-option">
                 <span class="fab-label">Register Board</span>
-                <button id="register-board-btn" class="fab-icon bg-secondary-accent text-white">
-                    <i class="fas fa-qrcode"></i>
-                </button>
+                <button id="register-board-btn" class="fab-icon bg-secondary-accent text-white"><i class="fas fa-qrcode"></i></button>
             </div>
-            <!-- Add Room Option -->
             <div class="fab-option">
                 <span class="fab-label">Add Room</span>
-                <button id="add-room-btn" class="fab-icon bg-secondary-accent text-white">
-                    <i class="fas fa-door-open"></i>
-                </button>
+                <button id="add-room-btn" class="fab-icon bg-secondary-accent text-white"><i class="fas fa-door-open"></i></button>
             </div>
         </div>
         <button id="fab-main-btn" class="w-16 h-16 bg-primary-accent text-white rounded-full flex items-center justify-center shadow-lg text-2xl transition-transform transform">
             <i class="fas fa-plus"></i>
         </button>
     </div>
-
 
     <!-- Room Settings Modal -->
     <div id="settings-room-modal" class="fixed inset-0 bg-gray-900 bg-opacity-70 flex items-center justify-center hidden z-50">
@@ -308,7 +281,7 @@
         </div>
     </div>
 
-    <!-- Modals for adding rooms and appliances -->
+    <!-- Add Room Modal -->
     <div id="add-room-modal" class="fixed inset-0 bg-gray-900 bg-opacity-70 flex items-center justify-center hidden z-50">
         <div class="bg-card p-6 rounded-lg shadow-xl w-80">
             <h3 class="text-xl font-bold mb-4 text-text-card-foreground">Add New Room</h3>
@@ -351,12 +324,12 @@
             </form>
         </div>
     </div>
-
-    <!-- NEW: Register Board Modal -->
+    
+    <!-- Register Board Modal -->
     <div id="register-board-modal" class="fixed inset-0 bg-gray-900 bg-opacity-70 flex items-center justify-center hidden z-50">
         <div class="bg-card p-6 rounded-lg shadow-xl w-96">
             <h3 class="text-xl font-bold mb-4 text-text-card-foreground">Register New Board</h3>
-            <p class="text-sm text-muted-foreground mb-4">Assign a generated board to a room by scanning its QR code or entering its ID manually.</p>
+            <p class="text-sm text-muted-foreground mb-4">Assign a board to a room by scanning its QR code or entering its ID manually.</p>
             <form id="register-board-form" class="space-y-4">
                 <input type="hidden" id="register-board-room-id">
                 <div>
@@ -457,22 +430,8 @@
             </div>
         </div>
     </div>
-
-    <!-- Webcam Container -->
-    <div id="webcam-card-container" class="hidden fixed bottom-20 right-20 w-80 h-60 rounded-xl shadow-xl z-50 overflow-hidden bg-card border border-gray-200 dark:border-gray-700">
-        <div class="flex items-center justify-between p-2 border-b border-gray-200 dark:border-gray-700">
-            <h4 class="text-sm font-semibold">Live Feed</h4>
-            <button id="close-webcam-btn" class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200">
-                <i class="fas fa-times"></i>
-            </button>
-        </div>
-        <video id="webcam-video-live" autoplay class="w-full h-full object-cover"></video>
-    </div>
-
-    <button id="add-board-btn" class="bg-green-600 text-white px-4 py-2 rounded-md font-semibold hover:bg-green-700 transition-colors">
-        <i class="fas fa-qrcode mr-2"></i>Add a New Board
-    </button>
     
+    <!-- QR Scanner Modal -->
     <div id="qr-scanner-modal" class="hidden fixed inset-0 bg-gray-900 bg-opacity-75 flex items-center justify-center z-[100]">
         <div class="bg-card p-6 rounded-lg shadow-xl w-full max-w-md">
             <h3 class="text-xl font-bold mb-4">Scan Board QR Code</h3>
@@ -501,6 +460,5 @@
 <script src="{{ url_for('static', filename='js/qrScanner.js') }}"></script>
 <script src="{{ url_for('static', filename='js/eventListeners.js') }}"></script>
 <script src="{{ url_for('static', filename='js/main.js') }}"></script>
-
 
 {% endblock %}
