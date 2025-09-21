@@ -1,7 +1,5 @@
 {% extends "base.html" %}
-
 {% block title %}Control Panel{% endblock %}
-
 {% block content %}
 <style>
     /* Custom ghost class for Sortable.js */
@@ -62,33 +60,6 @@
         transform: translateX(26px);
     }
 
-    /* Webcam and Monitoring styles */
-    #webcam-card-container {
-        position: fixed;
-        bottom: 20px;
-        right: 20px;
-        width: 320px;
-        height: 240px;
-        border: 2px solid var(--primary-accent-light);
-        background-color: var(--bg-card-light);
-        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-        border-radius: 0.5rem;
-        overflow: hidden;
-        z-index: 40;
-    }
-    .dark #webcam-card-container {
-        border: 2px solid var(--primary-accent-dark);
-        background-color: var(--bg-card-dark);
-    }
-    #webcam-video {
-        width: 100%;
-        height: 100%;
-        object-fit: cover;
-    }
-    #ai-monitoring-card {
-        max-width: 500px;
-    }
-
     /* Styles for the Dropdown Floating Action Button (FAB) */
     .fab-container {
         position: fixed;
@@ -135,20 +106,6 @@
         justify-content: center;
         box-shadow: 0 4px 6px rgba(0,0,0,0.1);
     }
-
-    /* Animation for active monitoring buttons */
-    @keyframes pulse-glow {
-        0%, 100% {
-            box-shadow: 0 0 0 0 rgba(22, 163, 74, 0.7);
-        }
-        50% {
-            box-shadow: 0 0 10px 5px rgba(22, 163, 74, 0);
-        }
-    }
-    .monitoring-active-btn {
-        animation: pulse-glow 2s infinite;
-        border-color: #16a34a;
-    }
 </style>
 
 <div class="container mx-auto">
@@ -159,28 +116,7 @@
     </div>
 
     <!-- Rooms View (Main View) -->
-    <div id="rooms-view" class="transition-transform duration-500">
-        <div class="text-center mb-4">
-            <h2 class="text-3xl font-bold text-text-card-foreground">Room Center</h2>
-        </div>
-
-        <div class="flex justify-center items-center space-x-4 mb-8">
-            <button id="global-open-webcam-btn" class="bg-blue-500 text-white px-4 py-2 rounded-md font-semibold hover:bg-blue-600 transition-colors">
-                <i class="fas fa-camera mr-2"></i>Open Webcam
-            </button>
-            <button id="global-start-monitoring-btn" class="bg-teal-500 text-white px-4 py-2 rounded-md font-semibold hover:bg-teal-600 transition-colors">
-                <i class="fas fa-eye mr-2"></i>Start Monitoring
-            </button>
-        </div>
-
-        <div id="global-webcam-container" class="hidden w-full max-w-lg mx-auto mb-4 bg-card border rounded-lg shadow-md">
-            <video id="global-webcam-video" autoplay playsinline class="w-full h-auto rounded-lg"></video>
-        </div>
-        <div id="global-monitoring-card" class="hidden w-full max-w-lg mx-auto mb-4 p-4 bg-card border rounded-lg shadow-md text-center">
-            <h3 class="text-lg font-semibold mb-2">Global AI Monitoring Active</h3>
-            <p id="global-monitoring-status" class="text-lg text-teal-500 font-bold">Initializing...</p>
-        </div>
-        
+    <div id="rooms-view">
         <div id="room-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             <!-- Room cards will be dynamically inserted here -->
         </div>
@@ -195,43 +131,16 @@
     </div>
     
     <!-- Appliances View (Hidden by default) -->
-    <div id="appliances-view" class="hidden transition-transform duration-500">
+    <div id="appliances-view" class="hidden">
         <div class="flex flex-col items-center mb-4">
             <div class="w-full flex justify-between items-center mb-4">
                 <button id="back-to-rooms-btn" class="bg-gray-400 text-white px-4 py-2 rounded-md font-semibold hover:bg-gray-500 transition-colors">
                     <i class="fas fa-arrow-left mr-2"></i>Back to Rooms
                 </button>
-                <div class="flex-grow flex justify-center">
-                    <h2 class="text-2xl font-bold text-text-card-foreground" id="appliances-heading"></h2>
-                </div>
+                <h2 class="text-2xl font-bold text-text-card-foreground" id="appliances-heading"></h2>
                 <div></div>
             </div>
-            
-            <div class="flex space-x-4 mb-4">
-                <button id="open-webcam-btn" class="bg-secondary-accent text-white px-4 py-2 rounded-md font-semibold hover:bg-opacity-80 transition-colors">
-                    <i class="fas fa-camera mr-2"></i>Open Webcam
-                </button>
-                <button id="start-monitoring-btn" class="bg-primary-accent text-white px-4 py-2 rounded-md font-semibold hover:bg-opacity-80 transition-colors">
-                    <i class="fas fa-eye mr-2"></i>Start Monitoring
-                </button>
-            </div>
-
-            <div id="ai-monitoring-card" class="hidden bg-card text-card-foreground rounded-xl border p-4 shadow-sm w-full max-w-lg mx-auto mt-4 flex flex-col items-center text-center">
-                <h3 class="text-lg font-semibold mb-2">AI Monitoring Active</h3>
-                <p id="monitoring-status" class="text-lg text-primary-accent font-bold">Awaiting human detection...</p>
-            </div>
-
-            <div id="webcam-card-container" class="hidden fixed bottom-20 right-20 w-80 h-60 rounded-xl shadow-xl z-50 overflow-hidden bg-card border border-gray-200 dark:border-gray-700">
-                <div class="flex items-center justify-between p-2 border-b border-gray-200 dark:border-gray-700">
-                    <h4 class="text-sm font-semibold">Live Feed</h4>
-                    <button id="close-webcam-btn" class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200">
-                        <i class="fas fa-times"></i>
-                    </button>
-                </div>
-                <video id="webcam-video-live" autoplay class="w-full h-full object-cover"></video>
-            </div>
         </div>
-
         <div id="appliance-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             <!-- Appliance cards will be dynamically inserted here -->
         </div>
@@ -240,15 +149,15 @@
     <!-- Dropdown Floating Action Button (FAB) -->
     <div class="fab-container">
         <div id="fab-options" class="fab-options">
-            <div id="add-appliance-option" class="fab-option">
+            <div id="fab-option-add-appliance" class="fab-option">
                 <span class="fab-label">Add Appliance</span>
                 <button id="add-appliance-btn" class="fab-icon bg-secondary-accent text-white"><i class="fas fa-plug"></i></button>
             </div>
-            <div class="fab-option">
+            <div id="fab-option-register-board" class="fab-option">
                 <span class="fab-label">Register Board</span>
                 <button id="register-board-btn" class="fab-icon bg-secondary-accent text-white"><i class="fas fa-qrcode"></i></button>
             </div>
-            <div class="fab-option">
+            <div id="fab-option-add-room" class="fab-option">
                 <span class="fab-label">Add Room</span>
                 <button id="add-room-btn" class="fab-icon bg-secondary-accent text-white"><i class="fas fa-door-open"></i></button>
             </div>
