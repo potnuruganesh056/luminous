@@ -52,6 +52,7 @@ if __name__ == '__main__':
     with app.app_context():
         # Run the migration once on startup if needed
         migrate_json_to_redis()
+        init_admin(app)
     
     run_mqtt_thread()
     port = int(os.environ.get('PORT', 5000))
