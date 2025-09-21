@@ -3,7 +3,7 @@ from flask import Blueprint, render_template, request, flash, redirect, url_for,
 from flask_login import login_user, logout_user, current_user
 from werkzeug.security import check_password_hash
 from auth.models import User
-from database.redis_db import get_all_users_from_db
+from database.redis_db import get_all_users_from_db, get_all_data_from_db
 
 admin_bp = Blueprint('admin', __name__, template_folder='../templates/admin', url_prefix='/secret-admin-panel')
 
@@ -32,12 +32,27 @@ def login():
             return redirect(url_for('admin.dashboard'))
 
     if request.method == 'POST':
-        username = request.form['username']
+        login_identifier = request.form['username'] # This can be a username OR an email
         password = request.form['password']
         
         all_users = get_all_users_from_db()
-        user_data = next((u for u in all_users if u.get('username') == username), None)
+        all_data = get_all_data_from_db()
+        user_data = None
 
+        # --- NEW: Find user by username OR email ---
+        # First, try to find by username
+        user_data = next((u for u in all_users if u.get('username') == login_identifier), None)
+
+        # If not found by username, try to find by email
+        if not user_data:
+            for user_id, data_record in all_data.items():
+                if data_record.get("user_settings", {}).get("email") == login_identifier:
+                    # We found the email, now get the corresponding auth record from all_users
+                    user_data = next((u for u in all_users if u.get('id') == user_id), None)
+                    break
+        # --- END NEW ---
+
+        # The rest of the logic remains the same
         if user_data and user_data.get('is_admin') and check_password_hash(user_data.get('password_hash', ''), password):
             user_obj = User(user_data['id'], user_data['username'], user_data['password_hash'])
             login_user(user_obj, remember=True)
