@@ -34,6 +34,9 @@ window.RoomRenderer = {
         } else {
             container.innerHTML = `<p class="text-center text-gray-500 col-span-full">No rooms created yet. Click the '+' button to add one.</p>`;
         }
+        
+        // After rendering, update the FAB to show the correct options for this view
+        window.DOMHelpers.updateFabVisibility('rooms');
     },
 
     // Render boards in the boards view
@@ -168,5 +171,7 @@ window.RoomRenderer = {
         window.RelayConfig.currentRoomId = null;
         window.DOMHelpers.toggleElementVisibility('rooms-view', true);
         window.DOMHelpers.toggleElementVisibility('appliances-view', false);
+        // Also update the FAB when going back
+        window.DOMHelpers.updateFabVisibility('rooms');
     }
 };
