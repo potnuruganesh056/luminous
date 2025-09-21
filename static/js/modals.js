@@ -365,13 +365,42 @@ window.Modals = {
 
     // Open register board modal
     openRegisterBoardModal(roomId) {
-        const form = document.getElementById('register-board-form');
-        if (form) form.reset();
-        
-        const roomIdField = document.getElementById('register-board-room-id');
-        if (roomIdField) roomIdField.value = roomId;
-        
+        document.getElementById('register-board-form').reset();
+        document.getElementById('register-board-room-id').value = roomId;
         window.DOMHelpers.toggleElementVisibility('register-board-modal', true);
+    },
+    // --- NEW FUNCTION: Handles the logic for the register board form ---
+    async handleRegisterBoardSubmit(e) {
+        e.preventDefault();
+        const form = e.target;
+        const roomId = form.querySelector('#register-board-room-id').value;
+        const boardId = form.querySelector('#board-id-manual').value;
+
+        if (!boardId) {
+            window.NotificationSystem.showNotification('Please enter or scan a Board ID.', 'error');
+            return;
+        }
+
+        window.NotificationSystem.showLoading('Registering board...');
+
+        try {
+            const response = await window.ApplianceAPI.registerBoard(roomId, boardId);
+            const result = await response.json();
+
+            if (response.ok) {
+                window.NotificationSystem.showNotification(result.message, 'success');
+                window.DOMHelpers.toggleElementVisibility('register-board-modal', false);
+                // Fetch all data again to update both the rooms and boards sections
+                window.ApplianceAPI.fetchDashboardData();
+            } else {
+                throw new Error(result.message);
+            }
+        } catch (error) {
+            window.NotificationSystem.showNotification(error.message, 'error');
+            console.error("Board registration failed:", error);
+        } finally {
+            window.NotificationSystem.hideLoading();
+        }
     },
 
     // Open room settings (alias for backward compatibility)
