@@ -22,9 +22,9 @@ def authorize_google():
         user_info = oauth_client.google.get('userinfo').json()
 
         # --- TEMPORARY CODE TO GET YOUR GOOGLE ID ---
-        print("\n--- GOOGLE USER INFO ---")
-        print(user_info)
-        print("--------------------------\n")
+        # print("\n--- GOOGLE USER INFO ---")
+        # print(user_info)
+        # print("--------------------------\n")
         # --- END OF TEMPORARY CODE ---
 
         profile = {
@@ -53,9 +53,9 @@ def authorize_github():
         user_info = oauth_client.github.get('user').json()
         
         # --- TEMPORARY CODE TO GET YOUR GITHUB ID ---
-        print("\n--- GITHUB USER INFO ---")
-        print(user_info)
-        print("--------------------------\n")
+        # print("\n--- GITHUB USER INFO ---")
+        # print(user_info)
+        # print("--------------------------\n")
         # --- END OF TEMPORARY CODE ---
 
         user_emails = oauth_client.github.get('user/emails').json()
