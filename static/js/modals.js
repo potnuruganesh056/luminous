@@ -30,6 +30,12 @@ window.ConfirmationModal = {
                 confirmActionBtn.textContent = 'Cancel Timer';
                 confirmActionBtn.className = 'px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors';
                 break;
+            case 'unregister-board':
+                confirmationTitle.textContent = 'Unregister Board';
+                confirmationMessage.textContent = 'Are you sure you want to unregister this board? Any appliances using this board will be disconnected.';
+                confirmActionBtn.textContent = 'Unregister Board';
+                confirmActionBtn.className = 'px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors';
+                break;
             default:
                 confirmationTitle.textContent = 'Confirm Action';
                 confirmationMessage.textContent = 'Are you sure you want to proceed?';
@@ -51,14 +57,14 @@ window.ConfirmationModal = {
                 const response = await window.ApplianceAPI.deleteRoom(roomId);
                 const result = await response.json();
                 if (response.ok) {
-                    window.NotificationSystem.showNotification('Room deleted successfully!', 'on');
-                    window.ApplianceAPI.fetchRoomsAndAppliances();
+                    window.NotificationSystem.showNotification('Room deleted successfully!', 'success');
+                    window.ApplianceAPI.fetchDashboardData();
                 } else {
-                    window.NotificationSystem.showNotification(`Error: ${result.message}`, 'off');
+                    window.NotificationSystem.showNotification(`Error: ${result.message}`, 'error');
                 }
             } catch (error) {
                 console.error(error);
-                window.NotificationSystem.showNotification('Failed to delete room.', 'off');
+                window.NotificationSystem.showNotification('Failed to delete room.', 'error');
             }
         } else if (window.RelayConfig.currentAction === 'delete-appliance') {
             const [roomId, applianceId] = window.RelayConfig.currentData;
@@ -66,15 +72,15 @@ window.ConfirmationModal = {
                 const response = await window.ApplianceAPI.deleteAppliance(roomId, applianceId);
                 const result = await response.json();
                 if (response.ok) {
-                    window.NotificationSystem.showNotification('Appliance deleted successfully!', 'on');
+                    window.NotificationSystem.showNotification('Appliance deleted successfully!', 'success');
                     window.DOMHelpers.toggleElementVisibility('settings-appliance-modal', false);
-                    window.ApplianceAPI.fetchRoomsAndAppliances();
+                    window.ApplianceAPI.fetchDashboardData();
                 } else {
-                    window.NotificationSystem.showNotification(`Error: ${result.message}`, 'off');
+                    window.NotificationSystem.showNotification(`Error: ${result.message}`, 'error');
                 }
             } catch (error) {
                 console.error(error);
-                window.NotificationSystem.showNotification('Failed to delete appliance.', 'off');
+                window.NotificationSystem.showNotification('Failed to delete appliance.', 'error');
             }
         } else if (window.RelayConfig.currentAction === 'cancel-timer') {
             const [roomId, applianceId] = window.RelayConfig.currentData;
@@ -82,14 +88,29 @@ window.ConfirmationModal = {
                 const response = await window.ApplianceAPI.setTimer(roomId, applianceId, null);
                 const result = await response.json();
                 if (response.ok) {
-                    window.NotificationSystem.showNotification('Timer cancelled.', 'on');
-                    window.ApplianceAPI.fetchRoomsAndAppliances();
+                    window.NotificationSystem.showNotification('Timer cancelled.', 'success');
+                    window.ApplianceAPI.fetchDashboardData();
                 } else {
-                    window.NotificationSystem.showNotification(`Error: ${result.message}`, 'off');
+                    window.NotificationSystem.showNotification(`Error: ${result.message}`, 'error');
                 }
             } catch (error) {
                 console.error(error);
-                window.NotificationSystem.showNotification('Failed to cancel timer.', 'off');
+                window.NotificationSystem.showNotification('Failed to cancel timer.', 'error');
+            }
+        } else if (window.RelayConfig.currentAction === 'unregister-board') {
+            const [boardId] = window.RelayConfig.currentData;
+            try {
+                const response = await window.ApplianceAPI.unregisterBoard(boardId);
+                const result = await response.json();
+                if (response.ok) {
+                    window.NotificationSystem.showNotification('Board unregistered successfully!', 'success');
+                    window.ApplianceAPI.fetchDashboardData();
+                } else {
+                    window.NotificationSystem.showNotification(`Error: ${result.message}`, 'error');
+                }
+            } catch (error) {
+                console.error(error);
+                window.NotificationSystem.showNotification('Failed to unregister board.', 'error');
             }
         }
         
@@ -143,17 +164,17 @@ window.RoomSettings = {
             const response = await window.ApplianceAPI.updateRoomSettings(roomId, newName, aiControl);
             
             if (response.ok) {
-                window.NotificationSystem.showNotification('Room settings updated!', 'on');
+                window.NotificationSystem.showNotification('Room settings updated!', 'success');
                 window.DOMHelpers.toggleElementVisibility('settings-room-modal', false);
-                window.ApplianceAPI.fetchRoomsAndAppliances();
+                window.ApplianceAPI.fetchDashboardData();
             } else {
                 const result = await response.json();
-                window.NotificationSystem.showNotification(`Error: ${result.message}`, 'off');
+                window.NotificationSystem.showNotification(`Error: ${result.message}`, 'error');
             }
             
         } catch (error) {
             console.error('Form submission failed:', error);
-            window.NotificationSystem.showNotification('Failed to save room settings. Check your connection.', 'off');
+            window.NotificationSystem.showNotification('Failed to save room settings. Check your connection.', 'error');
         } finally {
             submitButton.disabled = false;
             submitButton.innerHTML = originalButtonText;
@@ -171,7 +192,14 @@ window.ApplianceSettings = {
         document.getElementById('settings-edit-room-id').value = roomId;
         document.getElementById('edit-appliance-id').value = applianceId;
         document.getElementById('edit-appliance-name').value = appliance.name;
-        document.getElementById('edit-appliance-relay').value = appliance.relay_number;
+        
+        // Handle both legacy relay_number and new board/relay system
+        if (appliance.relay_number !== undefined) {
+            document.getElementById('edit-appliance-relay').value = appliance.relay_number;
+        } else {
+            document.getElementById('edit-appliance-board').value = appliance.board_id || '';
+            document.getElementById('edit-appliance-relay-id').value = appliance.relay_id || '';
+        }
         
         const roomSelector = document.getElementById('edit-room-selector');
         roomSelector.innerHTML = '';
@@ -187,9 +215,11 @@ window.ApplianceSettings = {
         
         const advancedSettingsToggle = document.querySelector('.advanced-settings-toggle');
         const advancedSettings = document.getElementById('advanced-settings');
-        advancedSettingsToggle.onclick = () => {
-            advancedSettings.classList.toggle('hidden');
-        };
+        if (advancedSettingsToggle && advancedSettings) {
+            advancedSettingsToggle.onclick = () => {
+                advancedSettings.classList.toggle('hidden');
+            };
+        }
 
         window.DOMHelpers.toggleElementVisibility('settings-appliance-modal', true);
     },
@@ -200,22 +230,32 @@ window.ApplianceSettings = {
         const roomId = document.getElementById('settings-edit-room-id').value;
         const applianceId = document.getElementById('edit-appliance-id').value;
         const newName = document.getElementById('edit-appliance-name').value;
-        const newRelay = document.getElementById('edit-appliance-relay').value;
         const newRoomId = document.getElementById('edit-room-selector').value;
         
+        // Handle both legacy and new board/relay system
+        let boardId, relayId;
+        if (document.getElementById('edit-appliance-relay')) {
+            // Legacy system
+            relayId = document.getElementById('edit-appliance-relay').value;
+        } else {
+            // New system
+            boardId = document.getElementById('edit-appliance-board').value;
+            relayId = document.getElementById('edit-appliance-relay-id').value;
+        }
+        
         try {
-            const response = await window.ApplianceAPI.updateApplianceSettings(roomId, applianceId, newName, newRelay, newRoomId);
+            const response = await window.ApplianceAPI.updateApplianceSettings(roomId, applianceId, newName, boardId, relayId, newRoomId);
             const result = await response.json();
             if (response.ok) {
-                window.NotificationSystem.showNotification('Appliance settings updated!', 'on');
+                window.NotificationSystem.showNotification('Appliance settings updated!', 'success');
                 window.DOMHelpers.toggleElementVisibility('settings-appliance-modal', false);
-                window.ApplianceAPI.fetchRoomsAndAppliances();
+                window.ApplianceAPI.fetchDashboardData();
             } else {
-                window.NotificationSystem.showNotification(`Error: ${result.message}`, 'off');
+                window.NotificationSystem.showNotification(`Error: ${result.message}`, 'error');
             }
         } catch (error) {
             console.error(error);
-            window.NotificationSystem.showNotification('Failed to save settings.', 'off');
+            window.NotificationSystem.showNotification('Failed to save settings.', 'error');
         }
     }
 };
@@ -256,18 +296,96 @@ window.TimerModal = {
                 const response = await window.ApplianceAPI.setTimer(roomId, applianceId, timerTimestamp);
                 const result = await response.json();
                 if (response.ok) {
-                    window.NotificationSystem.showNotification('Timer set successfully!', 'on');
+                    window.NotificationSystem.showNotification('Timer set successfully!', 'success');
                     window.DOMHelpers.toggleElementVisibility('timer-modal', false);
-                    window.ApplianceAPI.fetchRoomsAndAppliances();
+                    window.ApplianceAPI.fetchDashboardData();
                 } else {
-                    window.NotificationSystem.showNotification(`Error: ${result.message}`, 'off');
+                    window.NotificationSystem.showNotification(`Error: ${result.message}`, 'error');
                 }
             } catch (error) {
                 console.error(error);
-                window.NotificationSystem.showNotification('Failed to set timer.', 'off');
+                window.NotificationSystem.showNotification('Failed to set timer.', 'error');
             }
         } else {
-            window.NotificationSystem.showNotification('Please set a valid future time or duration.', 'off');
+            window.NotificationSystem.showNotification('Please set a valid future time or duration.', 'warning');
         }
+    }
+};
+
+// Extended Modals system with additional functionality
+window.Modals = {
+    // Open add appliance modal with dynamic board/relay loading
+    async openAddApplianceModal() {
+        const roomId = window.RelayConfig.currentRoomId;
+        if (!roomId) {
+            window.NotificationSystem.showNotification('Please select a room first.', 'warning');
+            return;
+        }
+        
+        const form = document.getElementById('add-appliance-form');
+        if (form) form.reset();
+
+        const boardSelector = document.getElementById('board-selector');
+        const relaySelector = document.getElementById('relay-selector');
+        
+        if (boardSelector && relaySelector) {
+            boardSelector.innerHTML = '<option value="" disabled selected>Loading boards...</option>';
+            relaySelector.innerHTML = '<option value="" disabled selected>Select a board first...</option>';
+            relaySelector.disabled = true;
+        }
+
+        window.DOMHelpers.toggleElementVisibility('add-appliance-modal', true);
+
+        try {
+            const response = await window.ApplianceAPI.getAvailableRelays(roomId);
+            const available = await response.json();
+            
+            if (boardSelector) {
+                boardSelector.innerHTML = '<option value="" disabled selected>Select a board...</option>';
+
+                if (available.length > 0) {
+                    available.forEach(board => {
+                        const option = document.createElement('option');
+                        option.value = board.board_id;
+                        option.textContent = `Board ${board.board_id.substring(0,8)}... (${board.relays.length} free)`;
+                        option._relays = board.relays; // Store relay data on the option
+                        boardSelector.appendChild(option);
+                    });
+                } else {
+                    boardSelector.innerHTML = '<option value="" disabled selected>No boards with free relays in this room</option>';
+                }
+            }
+        } catch (error) {
+            console.error('Failed to load available relays:', error);
+            if (boardSelector) {
+                boardSelector.innerHTML = '<option value="" disabled selected>Error loading boards</option>';
+            }
+        }
+    },
+
+    // Open register board modal
+    openRegisterBoardModal(roomId) {
+        const form = document.getElementById('register-board-form');
+        if (form) form.reset();
+        
+        const roomIdField = document.getElementById('register-board-room-id');
+        if (roomIdField) roomIdField.value = roomId;
+        
+        window.DOMHelpers.toggleElementVisibility('register-board-modal', true);
+    },
+
+    // Open room settings (alias for backward compatibility)
+    openRoomSettings(roomId) {
+        window.RoomSettings.openRoomSettings(roomId);
+    },
+
+    // Open appliance settings (alias for backward compatibility)
+    openApplianceSettings(roomId, applianceId) {
+        window.ApplianceSettings.openApplianceSettings(roomId, applianceId);
+    },
+
+    // Open confirmation modal (alias for backward compatibility)
+    openConfirmationModal(action, ...data) {
+        window.ConfirmationModal.openConfirmationModal(action, ...data);
     }
 };
