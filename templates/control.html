@@ -92,6 +92,52 @@
         max-width: 500px;
     }
 
+    .fab-container {
+        position: fixed;
+        bottom: 2.5rem;
+        right: 2.5rem;
+        z-index: 50;
+    }
+    .fab-options {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-end;
+        position: absolute;
+        bottom: 100%;
+        right: 0;
+        margin-bottom: 1rem;
+        display: none; /* Hidden by default */
+    }
+    .fab-option {
+        margin-bottom: 0.75rem;
+        display: flex;
+        align-items: center;
+        cursor: pointer;
+    }
+    .fab-label {
+        background-color: var(--bg-card-light);
+        color: var(--text-card-foreground-light);
+        padding: 0.5rem 1rem;
+        border-radius: 0.5rem;
+        margin-right: 0.75rem;
+        font-weight: 600;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        white-space: nowrap;
+    }
+    .dark .fab-label {
+        background-color: var(--bg-card-dark);
+        color: var(--text-card-foreground-dark);
+    }
+    .fab-icon {
+        width: 3rem;
+        height: 3rem;
+        border-radius: 9999px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    }
+
     /* Animation for active monitoring buttons */
     @keyframes pulse-glow {
         0%, 100% {
@@ -146,7 +192,16 @@
         </div>
         
         <div id="room-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <!-- Room cards will be dynamically inserted here -->
+        </div>
+
+        <!-- NEW: My Boards Section -->
+        <div id="boards-section" class="mt-16">
+            <h2 class="text-3xl font-bold text-center mb-8">My Registered Boards</h2>
+            <div id="boards-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <!-- Board cards will be dynamically inserted here -->
             </div>
+        </div>
 
         <div id="add-room-btn-container">
              <button id="add-room-btn" class="bg-secondary-accent text-white px-6 py-3 rounded-full font-semibold shadow-lg hover:bg-opacity-80 transition-colors flex items-center">
@@ -199,6 +254,36 @@
         </button>
     </div>
 
+    <!-- NEW: Dropdown Floating Action Button (FAB) -->
+    <div class="fab-container">
+        <div id="fab-options" class="fab-options">
+            <!-- Add Appliance Option -->
+            <div id="add-appliance-option" class="fab-option">
+                <span class="fab-label">Add Appliance</span>
+                <button id="add-appliance-btn" class="fab-icon bg-secondary-accent text-white">
+                    <i class="fas fa-plug"></i>
+                </button>
+            </div>
+            <!-- Add Board Option -->
+            <div class="fab-option">
+                <span class="fab-label">Register Board</span>
+                <button id="register-board-btn" class="fab-icon bg-secondary-accent text-white">
+                    <i class="fas fa-qrcode"></i>
+                </button>
+            </div>
+            <!-- Add Room Option -->
+            <div class="fab-option">
+                <span class="fab-label">Add Room</span>
+                <button id="add-room-btn" class="fab-icon bg-secondary-accent text-white">
+                    <i class="fas fa-door-open"></i>
+                </button>
+            </div>
+        </div>
+        <button id="fab-main-btn" class="w-16 h-16 bg-primary-accent text-white rounded-full flex items-center justify-center shadow-lg text-2xl transition-transform transform">
+            <i class="fas fa-plus"></i>
+        </button>
+    </div>
+
 
     <!-- Room Settings Modal -->
     <div id="settings-room-modal" class="fixed inset-0 bg-gray-900 bg-opacity-70 flex items-center justify-center hidden z-50">
@@ -240,18 +325,51 @@
 
     <!-- Add Appliance Modal -->
     <div id="add-appliance-modal" class="fixed inset-0 bg-gray-900 bg-opacity-70 flex items-center justify-center hidden z-50">
-        <div class="bg-card p-6 rounded-lg shadow-xl w-80">
+        <div class="bg-card p-6 rounded-lg shadow-xl w-96">
             <h3 class="text-xl font-bold mb-4 text-text-card-foreground">Add New Appliance</h3>
-            <form id="add-appliance-form">
-                <label for="new-appliance-name" class="block text-text-card-foreground mb-2">Appliance Name:</label>
-                <input type="text" id="new-appliance-name" name="name" class="w-full p-2 border rounded-md bg-gray-100 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100 focus:outline-none" required>
-                <label for="new-appliance-relay" class="block text-text-card-foreground mb-2 mt-4">Relay Number (1-4):</label>
-                <select id="new-appliance-relay" name="relay" class="w-full p-2 border rounded-md bg-gray-100 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100 focus:outline-none" required>
-                    <option value="" disabled selected>Select a relay...</option>
-                </select>
-                <div class="flex justify-end space-x-4 mt-6">
-                    <button type="button" id="cancel-appliance-btn" class="px-4 py-2 bg-gray-300 dark:bg-gray-700 dark:text-gray-200 rounded-lg hover:bg-gray-400 dark:hover:bg-gray-600 transition-colors">Cancel</button>
-                    <button type="submit" class="px-4 py-2 bg-secondary-accent text-white rounded-lg hover:bg-opacity-80 transition-colors">Add</button>
+            <form id="add-appliance-form" class="space-y-4">
+                <div>
+                    <label for="new-appliance-name" class="block text-sm font-medium mb-1">Appliance Name</label>
+                    <input type="text" id="new-appliance-name" class="w-full p-2 border rounded-md bg-gray-100 dark:bg-gray-700" required>
+                </div>
+                <div>
+                    <label for="board-selector" class="block text-sm font-medium mb-1">Select Board</label>
+                    <select id="board-selector" class="w-full p-2 border rounded-md bg-gray-100 dark:bg-gray-700" required>
+                        <option value="" disabled selected>Select a board...</option>
+                    </select>
+                </div>
+                <div>
+                    <label for="relay-selector" class="block text-sm font-medium mb-1">Select Available Relay</label>
+                    <select id="relay-selector" class="w-full p-2 border rounded-md bg-gray-100 dark:bg-gray-700" required disabled>
+                        <option value="" disabled selected>First select a board...</option>
+                    </select>
+                </div>
+                <div class="flex justify-end space-x-4 pt-4">
+                    <button type="button" class="px-4 py-2 bg-gray-300 dark:bg-gray-600 rounded-lg" onclick="window.DOMHelpers.toggleElementVisibility('add-appliance-modal', false)">Cancel</button>
+                    <button type="submit" class="px-4 py-2 bg-secondary-accent text-white rounded-lg">Add</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- NEW: Register Board Modal -->
+    <div id="register-board-modal" class="fixed inset-0 bg-gray-900 bg-opacity-70 flex items-center justify-center hidden z-50">
+        <div class="bg-card p-6 rounded-lg shadow-xl w-96">
+            <h3 class="text-xl font-bold mb-4 text-text-card-foreground">Register New Board</h3>
+            <p class="text-sm text-muted-foreground mb-4">Assign a generated board to a room by scanning its QR code or entering its ID manually.</p>
+            <form id="register-board-form" class="space-y-4">
+                <input type="hidden" id="register-board-room-id">
+                <div>
+                    <label for="board-id-manual" class="block text-sm font-medium mb-1">Board ID</label>
+                    <input type="text" id="board-id-manual" class="w-full p-2 border rounded-md bg-gray-100 dark:bg-gray-700" placeholder="e.g., a1b2c3d4">
+                </div>
+                <div class="text-center text-muted-foreground my-2">OR</div>
+                <button type="button" id="scan-qr-for-register-btn" class="w-full flex items-center justify-center p-2 border-2 border-dashed rounded-md hover:border-secondary-accent">
+                    <i class="fas fa-qrcode mr-2"></i> Scan QR Code
+                </button>
+                <div class="flex justify-end space-x-4 pt-4">
+                    <button type="button" class="px-4 py-2 bg-gray-300 dark:bg-gray-600 rounded-lg" onclick="window.DOMHelpers.toggleElementVisibility('register-board-modal', false)">Cancel</button>
+                    <button type="submit" class="px-4 py-2 bg-secondary-accent text-white rounded-lg">Register</button>
                 </div>
             </form>
         </div>
