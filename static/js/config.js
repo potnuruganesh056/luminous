@@ -1,50 +1,48 @@
 // config.js - Global configuration and state variables
 window.RelayConfig = {
-    // Timer intervals for each appliance
-    timerIntervals: {},
-    
-    // All rooms data cache
+    // Data Caches
     allRoomsData: [],
-    
-    // Current room being viewed
+    allBoardsData: [],
+    userEmail: null, // To check if email notifications can be sent
+
+    // Current State
     currentRoomId: null,
-    
-    // Sortable instances
+
+    // Sortable Instances
     roomSortable: null,
     applianceSortable: null,
     
-    // AI Control settings
+    // Timer intervals for each appliance
+    timerIntervals: {},
+    
+    // AI Model & Settings
+    model: null,
+    modelLoaded: false,
     aiControlInterval: 5000,
     lastEmailTime: null,
     
-    // Global monitoring state
+    // Global Monitoring State
     isGlobalMonitoring: false,
     isGlobalMonitoringActive: false,
     globalMonitoringStream: null,
     globalMonitoringIntervalId: null,
     lastGlobalEmailTime: null,
-    
-    // Webcam related
-    webcamStream: null,
     globalWebcamStream: null,
     
-    // AI Model
-    model: null,
-    modelLoaded: false,
-    
-    // Monitoring
+    // Individual Room Monitoring
     activeMonitors: new Map(),
     isMonitoring: false,
     monitoringStream: null,
     monitoringIntervalId: null,
     monitoringVideoElement: document.createElement('video'),
     
-    // Modal state
+    // Webcam & Camera
+    webcamStream: null,
+
+    // Modal State
     currentAction: null,
     currentData: null,
     pendingGlobalAction: null,
-
-    userEmail: null,
     
     // QR Scanner
     html5QrCode: null
