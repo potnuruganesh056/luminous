@@ -176,7 +176,6 @@ def add_room():
 @api_bp.route('/delete-room', methods=['POST'])
 @login_required
 def delete_room():
-    """Delete a room and unregister associated boards"""
     room_id = request.json.get('room_id')
     all_data = get_all_data_from_db()
     all_boards = get_all_boards_from_db()
@@ -186,12 +185,10 @@ def delete_room():
         return jsonify({"status": "error", "message": "Room not found."}), 404
 
     # Unregister all boards associated with this room
-    boards_cleared = 0
     for board in all_boards.values():
         if board.get('owner_id') == current_user.id and board.get('room_id') == room_id:
             board['owner_id'] = None
             board['room_id'] = None
-            boards_cleared += 1
             if 'relays' in board:
                 for relay in board['relays']:
                     relay['is_occupied'] = False
@@ -200,12 +197,7 @@ def delete_room():
     
     save_all_data_to_db(all_data)
     save_all_boards_to_db(all_boards)
-    
-    message = "Room deleted"
-    if boards_cleared > 0:
-        message += f" and {boards_cleared} associated boards released"
-    
-    return jsonify({"status": "success", "message": message + "."})
+    return jsonify({"status": "success", "message": "Room and associated boards have been cleared."})
 
 @api_bp.route('/update-room-settings', methods=['POST'])
 @login_required
@@ -263,10 +255,8 @@ def save_room_order():
 @api_bp.route('/add-appliance', methods=['POST'])
 @login_required
 def add_appliance():
-    """Add a new appliance to a room"""
     data = request.get_json()
-    room_id, name = data.get('room_id'), data.get('name')
-    board_id, relay_id = data.get('board_id'), data.get('relay_id')
+    room_id, name, board_id, relay_id = data.get('room_id'), data.get('name'), data.get('board_id'), data.get('relay_id')
 
     if not all([room_id, name, board_id, relay_id]):
         return jsonify({"status": "error", "message": "Missing required fields."}), 400
@@ -277,75 +267,54 @@ def add_appliance():
     room = next((r for r in user_data.get('rooms', []) if r['id'] == room_id), None)
     board = all_boards.get(board_id)
 
-    if not room:
-        return jsonify({"status": "error", "message": "Room not found."}), 404
-    if not board or board.get('owner_id') != current_user.id:
-        return jsonify({"status": "error", "message": "Board not found or you are not the owner."}), 404
+    if not room or not board or board.get('owner_id') != current_user.id:
+        return jsonify({"status": "error", "message": "Room or board not found, or you are not the owner."}), 404
 
-    # Check if relay is available
     relay = next((r for r in board.get('relays', []) if r['id'] == relay_id), None)
     if not relay or relay.get('is_occupied'):
-        return jsonify({"status": "error", "message": "Relay is not available or already occupied."}), 409
+        return jsonify({"status": "error", "message": "Relay is not available or is already occupied."}), 409
         
-    # Mark relay as occupied
-    relay['is_occupied'] = True
-    
-    # Create new appliance
+    relay['is_occupied'] = True # Mark as occupied
     new_appliance = {
-        "id": uuid.uuid4().hex, 
-        "name": name, 
-        "state": False,
-        "locked": False, 
-        "timer": None, 
-        "board_id": board_id, 
-        "relay_id": relay_id
+        "id": uuid.uuid4().hex, "name": name, "state": False,
+        "locked": False, "timer": None, 
+        "board_id": board_id, "relay_id": relay_id
     }
     room.setdefault('appliances', []).append(new_appliance)
 
     save_all_data_to_db(all_data)
     save_all_boards_to_db(all_boards)
-    return jsonify({"status": "success", "message": f"Appliance '{name}' added successfully.", "appliance_id": new_appliance['id']})
+    return jsonify({"status": "success", "message": f"Appliance '{name}' added successfully."})
+
 
 @api_bp.route('/delete-appliance', methods=['POST'])
 @login_required
 def delete_appliance():
-    """Delete an appliance and free its relay"""
-    try:
-        data = request.get_json()
-        room_id = data['room_id']
-        appliance_id = data['appliance_id']
+    room_id, appliance_id = request.json.get('room_id'), request.json.get('appliance_id')
+    all_data = get_all_data_from_db()
+    all_boards = get_all_boards_from_db()
+    user_data = all_data.get(current_user.id, {})
+    room = next((r for r in user_data.get('rooms', []) if r['id'] == room_id), None)
 
-        all_data = get_all_data_from_db()
-        all_boards = get_all_boards_from_db()
-        user_data = all_data.get(current_user.id)
-        
-        if not user_data:
-            return jsonify({"status": "error", "message": "User data not found."}), 404
+    if not room: return jsonify({"status": "error", "message": "Room not found."}), 404
 
-        room = next((r for r in user_data.get('rooms', []) if r['id'] == room_id), None)
-        if not room:
-            return jsonify({"status": "error", "message": "Room not found."}), 404
+    appliance_to_delete = next((app for app in room.get('appliances', []) if app['id'] == appliance_id), None)
+    if not appliance_to_delete: return jsonify({"status": "error", "message": "Appliance not found."}), 404
 
-        appliance_to_delete = next((app for app in room.get('appliances', []) if app['id'] == appliance_id), None)
-        if not appliance_to_delete:
-            return jsonify({"status": "error", "message": "Appliance not found."}), 404
+    # Free the relay
+    board_id, relay_id = appliance_to_delete.get('board_id'), appliance_to_delete.get('relay_id')
+    if board_id and relay_id and board_id in all_boards:
+        board = all_boards[board_id]
+        relay = next((r for r in board.get('relays', []) if r['id'] == relay_id), None)
+        if relay: 
+            relay['is_occupied'] = False
 
-        # Free the relay
-        board_id, relay_id = appliance_to_delete.get('board_id'), appliance_to_delete.get('relay_id')
-        if board_id and relay_id and board_id in all_boards:
-            relay = next((r for r in all_boards[board_id].get('relays', []) if r['id'] == relay_id), None)
-            if relay:
-                relay['is_occupied'] = False
+    room['appliances'] = [app for app in room['appliances'] if app['id'] != appliance_id]
+    
+    save_all_data_to_db(all_data)
+    save_all_boards_to_db(all_boards)
+    return jsonify({"status": "success", "message": "Appliance deleted."})
 
-        room['appliances'] = [app for app in room['appliances'] if app['id'] != appliance_id]
-        
-        save_all_data_to_db(all_data)
-        save_all_boards_to_db(all_boards)
-        return jsonify({"status": "success", "message": "Appliance deleted."}), 200
-    except KeyError:
-        return jsonify({"status": "error", "message": "Missing room_id or appliance_id."}), 400
-    except Exception as e:
-        return jsonify({"status": "error", "message": "An internal error occurred."}), 500
 
 @api_bp.route('/set-appliance-state', methods=['POST'])
 @login_required
