@@ -10,7 +10,6 @@ from flask import current_app
 
 @oauth_bp.route('/login/google')
 def login_google():
-    # Correctly access the Authlib OAuth object
     oauth_client = current_app.extensions['authlib.integrations.flask_client']
     redirect_uri = url_for('oauth.authorize_google', _external=True)
     return oauth_client.google.authorize_redirect(redirect_uri)
@@ -21,7 +20,13 @@ def authorize_google():
         oauth_client = current_app.extensions['authlib.integrations.flask_client']
         token = oauth_client.google.authorize_access_token()
         user_info = oauth_client.google.get('userinfo').json()
-        
+
+        # --- TEMPORARY CODE TO GET YOUR GOOGLE ID ---
+        print("\n--- GOOGLE USER INFO ---")
+        print(user_info)
+        print("--------------------------\n")
+        # --- END OF TEMPORARY CODE ---
+
         profile = {
             'provider': 'google',
             'provider_id': user_info.get('sub'),
@@ -46,6 +51,13 @@ def authorize_github():
         oauth_client = current_app.extensions['authlib.integrations.flask_client']
         token = oauth_client.github.authorize_access_token()
         user_info = oauth_client.github.get('user').json()
+        
+        # --- TEMPORARY CODE TO GET YOUR GITHUB ID ---
+        print("\n--- GITHUB USER INFO ---")
+        print(user_info)
+        print("--------------------------\n")
+        # --- END OF TEMPORARY CODE ---
+
         user_emails = oauth_client.github.get('user/emails').json()
         primary_email = next((e['email'] for e in user_emails if e['primary']), None)
         
@@ -65,6 +77,7 @@ def authorize_github():
     except Exception as e:
         print(f"--- GITHUB LOGIN ERROR --- \n{e}\n--------------------------")
         return redirect(url_for('frontend.error_page', error_message='GitHub login failed. Please try again.'))
+
 
 @oauth_bp.route('/link/google')
 @login_required
