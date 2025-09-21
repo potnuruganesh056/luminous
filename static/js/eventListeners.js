@@ -78,13 +78,18 @@ window.EventListeners = {
                 try {
                     const response = await window.ApplianceAPI.addAppliance(roomId, name, boardId, relayId);
                     const result = await response.json();
+                    
                     if (response.ok) {
                         window.NotificationSystem.showNotification(result.message, 'success');
+                        
+                        // --- THE FIX IS HERE ---
                         // 1. Close the modal so the user can't submit the same data again.
                         window.DOMHelpers.toggleElementVisibility('add-appliance-modal', false);
                         
                         // 2. Fetch fresh data to update the UI and available relay list.
                         await window.ApplianceAPI.fetchDashboardData();
+                        // --- END OF FIX ---
+
                     } else {
                         throw new Error(result.message);
                     }
