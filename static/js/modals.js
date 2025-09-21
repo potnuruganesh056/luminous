@@ -350,6 +350,27 @@ window.Modals = {
                         option.textContent = `Board ${board.board_id.substring(0,8)}... (${board.relays.length} free)`;
                         option._relays = board.relays; // Store relay data on the option
                         boardSelector.appendChild(option);
+
+                        boardSelector.onchange = () => {
+                            const selectedOption = boardSelector.options[boardSelector.selectedIndex];
+                            const relays = selectedOption._relays; // Retrieve the stored relay data
+        
+                            relaySelector.innerHTML = ''; // Clear previous options
+                            if (relays && relays.length > 0) {
+                                relaySelector.disabled = false;
+                                relaySelector.innerHTML = '<option value="" disabled selected>Select a relay...</option>';
+                                relays.forEach(relay => {
+                                    const relayOption = document.createElement('option');
+                                    relayOption.value = relay.id;
+                                    // Display a user-friendly name, e.g., "Relay 1"
+                                    relayOption.textContent = `Relay ${relay.id.substring(0, 8)}...`; 
+                                    relaySelector.appendChild(relayOption);
+                                });
+                            } else {
+                                relaySelector.disabled = true;
+                                relaySelector.innerHTML = '<option value="" disabled selected>No free relays on this board</option>';
+                            }
+                        };
                     });
                 } else {
                     boardSelector.innerHTML = '<option value="" disabled selected>No boards with free relays in this room</option>';
