@@ -44,7 +44,7 @@ app.register_blueprint(frontend_bp)
 app.register_blueprint(oauth_bp)
 app.register_blueprint(analytics_bp, url_prefix='/api')
 app.register_blueprint(admin_bp)              # <-- REGISTER ADMIN FRONTEND
-app.register_blueprint(admin_api_bp, url_prefix='/api') # <-- REGISTER ADMIN API
+app.register_blueprint(admin_api_bp, url_prefix='/api/admin') # <-- REGISTER ADMIN API
 
 configure_oauth_providers(oauth)
 
