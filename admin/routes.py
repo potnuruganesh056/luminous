@@ -26,9 +26,10 @@ def admin_required(f):
 @admin_bp.route('/login', methods=['GET', 'POST'])
 def login():
     if current_user.is_authenticated:
+        # Bug Fix: Correctly check if the currently logged-in user is an admin
         users = get_all_users_from_db()
-        admin_user_data = next((u for u in users if u.get('id') == current_user.id), None)
-        if admin_user_data and admin_user_data.get('is_admin'):
+        user_record = next((u for u in users if u.get('id') == current_user.id), None)
+        if user_record and user_record.get('is_admin'):
             return redirect(url_for('admin.dashboard'))
 
     if request.method == 'POST':
@@ -39,26 +40,32 @@ def login():
         all_data = get_all_data_from_db()
         user_data = None
 
-        # --- NEW: Find user by username OR email ---
-        # First, try to find by username
+        # --- Find user by username OR email ---
         user_data = next((u for u in all_users if u.get('username') == login_identifier), None)
 
-        # If not found by username, try to find by email
         if not user_data:
             for user_id, data_record in all_data.items():
                 if data_record.get("user_settings", {}).get("email") == login_identifier:
-                    # We found the email, now get the corresponding auth record from all_users
                     user_data = next((u for u in all_users if u.get('id') == user_id), None)
                     break
-        # --- END NEW ---
+        
+        # --- NEW: Improved Validation Logic ---
+        if not user_data:
+            flash('Account not found with that username or email.', 'error')
+            return redirect(url_for('admin.login'))
 
-        # The rest of the logic remains the same
-        if user_data and user_data.get('is_admin') and check_password_hash(user_data.get('password_hash', ''), password):
-            user_obj = User(user_data['id'], user_data['username'], user_data['password_hash'])
-            login_user(user_obj, remember=True)
-            return redirect(url_for('admin.dashboard'))
-        else:
-            flash('Invalid credentials or not an admin account.', 'error')
+        if not user_data.get('is_admin'):
+            flash('This account does not have admin privileges.', 'error')
+            return redirect(url_for('admin.login'))
+
+        if not check_password_hash(user_data.get('password_hash', ''), password):
+            flash('Invalid password. Please try again.', 'error')
+            return redirect(url_for('admin.login'))
+
+        # If all checks pass, log the user in
+        user_obj = User(user_data['id'], user_data['username'], user_data['password_hash'])
+        login_user(user_obj, remember=True)
+        return redirect(url_for('admin.dashboard'))
 
     return render_template('admin_login.html')
 
