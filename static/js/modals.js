@@ -189,19 +189,15 @@ window.ApplianceSettings = {
         if (!room) return;
         const appliance = room.appliances.find(a => a.id === applianceId);
         
+        document.getElementById('edit-appliance-id').value = appliance.id;
         document.getElementById('settings-edit-room-id').value = roomId;
-        document.getElementById('edit-appliance-id').value = applianceId;
         document.getElementById('edit-appliance-name').value = appliance.name;
-        
-        // Handle both legacy relay_number and new board/relay system
-        if (appliance.relay_number !== undefined) {
-            document.getElementById('edit-appliance-relay').value = appliance.relay_number;
-        } else {
-            document.getElementById('edit-appliance-board').value = appliance.board_id || '';
-            document.getElementById('edit-appliance-relay-id').value = appliance.relay_id || '';
-        }
-        
+
         const roomSelector = document.getElementById('edit-room-selector');
+        const boardSelector = document.getElementById('edit-board-selector');
+        const relaySelector = document.getElementById('edit-relay-selector');
+
+        
         roomSelector.innerHTML = '';
         window.RelayConfig.allRoomsData.forEach(r => {
             const option = document.createElement('option');
