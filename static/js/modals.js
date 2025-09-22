@@ -314,6 +314,41 @@ window.TimerModal = {
 
 // Extended Modals system with additional functionality
 window.Modals = {
+
+    openAddRoomModal() {
+        const form = document.getElementById('add-room-form');
+        if(form) form.reset();
+        window.DOMHelpers.toggleElementVisibility('add-room-modal', true);
+    },
+
+    async handleAddRoomSubmit(e) {
+        e.preventDefault();
+        const roomNameInput = document.getElementById('new-room-name');
+        if (!roomNameInput.value) {
+            window.NotificationSystem.showNotification('Room name cannot be empty.', 'error');
+            return;
+        }
+
+        window.NotificationSystem.showLoading('Creating room...');
+        try {
+            const response = await window.ApplianceAPI.addRoom(roomNameInput.value);
+            const result = await response.json();
+
+            if (response.ok) {
+                window.NotificationSystem.showNotification('Room added successfully!', 'success');
+                window.DOMHelpers.toggleElementVisibility('add-room-modal', false);
+                // Fetch all data again to update the UI
+                await window.ApplianceAPI.fetchDashboardData();
+            } else {
+                throw new Error(result.message);
+            }
+        } catch (error) {
+            window.NotificationSystem.showNotification(error.message, 'error');
+        } finally {
+            window.NotificationSystem.hideLoading();
+        }
+    },
+    
     // Open add appliance modal with dynamic board/relay loading
     async openAddApplianceModal() {
         const roomId = window.RelayConfig.currentRoomId;
