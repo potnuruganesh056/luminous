@@ -60,46 +60,46 @@ window.EventListeners = {
             });
         }
 
-        const addApplianceForm = document.getElementById('add-appliance-form');
-        if (addApplianceForm) {
-            addApplianceForm.addEventListener('submit', async (e) => {
-                e.preventDefault();
-                const roomId = window.RelayConfig.currentRoomId;
-                const name = document.getElementById('new-appliance-name').value;
-                const boardId = document.getElementById('board-selector').value;
-                const relayId = document.getElementById('relay-selector').value;
+        document.getElementById('add-appliance-form').addEventListener('submit', window.Modals.handleAddApplianceSubmit);
+        // if (addApplianceForm) {
+        //     addApplianceForm.addEventListener('submit', async (e) => {
+        //         e.preventDefault();
+        //         const roomId = window.RelayConfig.currentRoomId;
+        //         const name = document.getElementById('new-appliance-name').value;
+        //         const boardId = document.getElementById('board-selector').value;
+        //         const relayId = document.getElementById('relay-selector').value;
 
-                if (!name || !boardId || !relayId) {
-                    window.NotificationSystem.showNotification('Please fill out all fields.', 'error');
-                    return;
-                }
+        //         if (!name || !boardId || !relayId) {
+        //             window.NotificationSystem.showNotification('Please fill out all fields.', 'error');
+        //             return;
+        //         }
 
-                window.NotificationSystem.showLoading('Adding appliance...');
-                try {
-                    const response = await window.ApplianceAPI.addAppliance(roomId, name, boardId, relayId);
-                    const result = await response.json();
+        //         window.NotificationSystem.showLoading('Adding appliance...');
+        //         try {
+        //             const response = await window.ApplianceAPI.addAppliance(roomId, name, boardId, relayId);
+        //             const result = await response.json();
                     
-                    if (response.ok) {
-                        window.NotificationSystem.showNotification(result.message, 'success');
+        //             if (response.ok) {
+        //                 window.NotificationSystem.showNotification(result.message, 'success');
                         
-                        // --- THE FIX IS HERE ---
-                        // 1. Close the modal so the user can't submit the same data again.
-                        window.DOMHelpers.toggleElementVisibility('add-appliance-modal', false);
+        //                 // --- THE FIX IS HERE ---
+        //                 // 1. Close the modal so the user can't submit the same data again.
+        //                 window.DOMHelpers.toggleElementVisibility('add-appliance-modal', false);
                         
-                        // 2. Fetch fresh data to update the UI and available relay list.
-                        await window.ApplianceAPI.fetchDashboardData();
-                        // --- END OF FIX ---
+        //                 // 2. Fetch fresh data to update the UI and available relay list.
+        //                 await window.ApplianceAPI.fetchDashboardData();
+        //                 // --- END OF FIX ---
 
-                    } else {
-                        throw new Error(result.message);
-                    }
-                } catch (error) {
-                    window.NotificationSystem.showNotification(error.message, 'error');
-                } finally {
-                    window.NotificationSystem.hideLoading();
-                }
-            });
-        }
+        //             } else {
+        //                 throw new Error(result.message);
+        //             }
+        //         } catch (error) {
+        //             window.NotificationSystem.showNotification(error.message, 'error');
+        //         } finally {
+        //             window.NotificationSystem.hideLoading();
+        //         }
+        //     });
+        // }
 
         // Initialize other listener groups
         this.initWebcamListeners();
