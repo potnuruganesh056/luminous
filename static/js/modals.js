@@ -224,6 +224,52 @@ window.ApplianceSettings = {
         window.DOMHelpers.toggleElementVisibility('settings-appliance-modal', true);
     },
 
+    async handleAddApplianceSubmit(e) {
+        e.preventDefault();
+        const roomId = window.RelayConfig.currentRoomId;
+        const name = document.getElementById('new-appliance-name').value;
+        const boardId = document.getElementById('board-selector').value;
+        const relayId = document.getElementById('relay-selector').value;
+
+        // 1. Validate that all fields have been selected.
+        if (!name || !boardId || !relayId) {
+            window.NotificationSystem.showNotification('Please fill out all fields.', 'error');
+            return;
+        }
+
+        window.NotificationSystem.showLoading('Adding appliance...');
+
+        try {
+            // 2. Send the data to the backend API.
+            const response = await window.ApplianceAPI.addAppliance(roomId, name, boardId, relayId);
+            const result = await response.json();
+            
+            if (response.ok) {
+                window.NotificationSystem.showNotification(result.message, 'success');
+                
+                // --- THE FIX IS HERE ---
+                // 3. Close the modal to prevent the user from resubmitting the same data.
+                window.DOMHelpers.toggleElementVisibility('add-appliance-modal', false);
+                
+                // 4. Fetch all data again. This is the critical step that refreshes the
+                //    list of available relays for the next time the modal is opened.
+                await window.ApplianceAPI.fetchDashboardData();
+                // --- END OF FIX ---
+
+            } else {
+                // If the server returns an error (like 409), throw it to the catch block.
+                throw new Error(result.message || 'An unknown error occurred.');
+            }
+        } catch (error) {
+            // 5. Display any errors to the user.
+            window.NotificationSystem.showNotification(error.message, 'error');
+            console.error("Failed to add appliance:", error);
+        } finally {
+            // 6. Always remove the loading indicator.
+            window.NotificationSystem.hideLoading();
+        }
+    },
+    
     // Handle appliance settings form submission
     async handleApplianceSettingsSubmit(e) {
         e.preventDefault();
