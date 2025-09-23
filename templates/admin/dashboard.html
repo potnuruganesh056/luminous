@@ -147,7 +147,8 @@
                 document.getElementById('board-id-display').textContent = result.board_id;
                 new QRious({
                     element: document.getElementById('qr-canvas'),
-                    value: result.qr_data, size: 200
+                    value: result.qr_data, // This is now the board_id
+                    size: 200
                 });
             } else {
                 alert(`Error: ${result.message}`);
