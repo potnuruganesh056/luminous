@@ -9,3 +9,4 @@ Authlib
 redis
 Flask-SQLAlchemy
 psycopg2-binary
+pycryptodome
