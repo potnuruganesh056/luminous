@@ -7,28 +7,37 @@ window.QRScanner = {
     },
 
     // Open QR scanner modal
-    openQrScanner(roomId) {
+    openQrScanner(targetInputId) {
         const qrModal = document.getElementById('qr-scanner-modal');
         if (!qrModal) return;
 
-        // Lazy initialize the scanner object if it doesn't exist
         if (!window.RelayConfig.html5QrCode) {
             window.RelayConfig.html5QrCode = new Html5Qrcode("qr-reader");
         }
         
-        qrModal.classList.remove('hidden');
-        const config = { fps: 10, qrbox: { width: 250, height: 250 } };
+        window.DOMHelpers.toggleElementVisibility('qr-scanner-modal', true);
         
         const onQrSuccess = (decodedText, decodedResult) => {
             window.RelayConfig.html5QrCode.stop().then(() => {
-                qrModal.classList.add('hidden');
-                // Pass the raw encrypted text to the handler
-                this.handleQrCodeData(decodedText, roomId);
+                window.DOMHelpers.toggleElementVisibility('qr-scanner-modal', false);
+                // MODIFICATION: Directly populate the input field with the scanned board ID
+                const targetInput = document.getElementById(targetInputId);
+                if(targetInput) {
+                    targetInput.value = decodedText;
+                }
             }).catch(err => console.error("Failed to stop QR scanner.", err));
         };
         
+        const config = { fps: 10, qrbox: { width: 250, height: 250 } };
         window.RelayConfig.html5QrCode.start({ facingMode: "environment" }, config, onQrSuccess);
     },
+
+    closeQrScanner() {
+        if (window.RelayConfig.html5QrCode) {
+            window.RelayConfig.html5QrCode.stop().catch(err => {});
+        }
+        window.DOMHelpers.toggleElementVisibility('qr-scanner-modal', false);
+    }
 
     // Close QR scanner modal
     closeQrScanner() {
