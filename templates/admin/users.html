@@ -1,0 +1,110 @@
+{% extends "admin/admin_base.html" %}
+{% block title %}User Management{% endblock %}
+
+{% block admin_content %}
+<div class="flex justify-between items-center mb-6">
+    <h2 class="text-4xl font-bold">User Management</h2>
+</div>
+<div class="bg-gray-800 p-6 rounded-lg shadow-lg overflow-x-auto">
+   <table id="user-table" class="display w-full" style="width:100%">
+       <thead>
+           <tr>
+               <th>ID</th>
+               <th>Username</th>
+               <th>Email</th>
+               <th>Role</th>
+               <th>Status</th>
+               <th>Actions</th>
+           </tr>
+       </thead>
+       <tbody></tbody>
+   </table>
+</div>
+{% endblock %}
+
+{% block page_scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        let userTable;
+
+        // Function to initialize or reload the user data table
+        function loadUsers() {
+            if ($.fn.DataTable.isDataTable('#user-table')) {
+                userTable.ajax.reload();
+                return;
+            }
+            userTable = $('#user-table').DataTable({
+                ajax: { 
+                    url: '/api/admin/users', 
+                    dataSrc: '' // Expecting a direct list of users
+                },
+                columns: [
+                    { data: 'id', className: 'font-mono text-sm' },
+                    { data: 'username' },
+                    { data: 'email' },
+                    { 
+                        data: 'is_admin',
+                        render: (data) => data 
+                            ? '<span class="px-2 py-1 bg-indigo-500 text-xs rounded-full">Admin</span>' 
+                            : '<span class="px-2 py-1 bg-gray-600 text-xs rounded-full">User</span>'
+                    },
+                    {
+                        data: 'is_suspended',
+                        render: (data) => data 
+                            ? '<span class="px-2 py-1 bg-yellow-600 text-xs rounded-full">Suspended</span>' 
+                            : '<span class="px-2 py-1 bg-green-600 text-xs rounded-full">Active</span>'
+                    },
+                    { 
+                        data: null,
+                        orderable: false,
+                        render: (data, type, row) => {
+                            if (row.is_admin) return ''; // Cannot perform actions on other admins
+                            
+                            const suspendText = row.is_suspended ? 'Unsuspend' : 'Suspend';
+                            const suspendClass = row.is_suspended ? 'text-green-400 hover:text-green-500' : 'text-yellow-400 hover:text-yellow-500';
+                            
+                            return `
+                                <button onclick="window.suspendUser('${row.id}', ${!row.is_suspended})" class="${suspendClass} font-semibold mr-3">${suspendText}</button>
+                                <button onclick="window.deleteUser('${row.id}')" class="text-red-400 hover:text-red-500 font-semibold">Delete</button>
+                            `;
+                        }
+                    }
+                ],
+                // Standard DataTable features
+                dom: 'Bfrltip',
+                buttons: ['csv', 'excel', 'pdf'],
+                pageLength: 10,
+                lengthMenu: [[10, 25, 50, -1], [10, 25, 50, "All"]],
+                responsive: true
+            });
+        }
+
+        // Make action functions globally accessible
+        window.suspendUser = async function(userId, newStatus) {
+            const action = newStatus ? 'suspend' : 'unsuspend';
+            if (!confirm(`Are you sure you want to ${action} user ${userId}?`)) return;
+            
+            await fetch('/api/admin/suspend-user', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ user_id: userId, status: newStatus })
+            });
+            userTable.ajax.reload(); // Reload table data
+        }
+        
+        window.deleteUser = async function(userId) {
+            if (confirm(`Are you sure you want to permanently delete user ${userId}? This cannot be undone.`)) {
+                await fetch('/api/admin/delete-user', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ user_id: userId })
+                });
+                userTable.ajax.reload();
+            }
+        }
+
+        // Initial load
+        loadUsers();
+    });
+</script>
+{% endblock %}
