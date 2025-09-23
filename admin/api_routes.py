@@ -13,6 +13,15 @@ from flask_login import current_user
 
 admin_api_bp = Blueprint('admin_api', __name__)
 
+def _generate_random_hex(length=32):
+    return secrets.token_hex(length // 2)
+
+def _generate_random_string(length=8):
+    return ''.join(random.choices(string.ascii_letters + string.digits, k=length))
+
+def _generate_random_int(max_digits=8):
+    return random.randint(0, 10**max_digits - 1)
+
 def get_all_boards_from_db():
     boards_json = redis_client.get('boards')
     return json.loads(boards_json) if boards_json else {}
@@ -23,21 +32,40 @@ def save_all_boards_to_db(boards_dict):
 @admin_api_bp.route('/generate-board', methods=['POST'])
 @admin_required
 def generate_board():
+    """
+    Generates a new board from detailed form data.
+    Fills in any missing fields with random data.
+    """
     data = request.get_json()
-    number_of_relays = int(data.get('relay_count', 4))
     
-    board_id = uuid.uuid4().hex
-    relays = [
-        {"id": uuid.uuid4().hex, "name": f"Relay {i+1}", "is_occupied": False}
-        for i in range(number_of_relays)
-    ]
+    # Process and randomize fields if they are missing
+    board_id = data.get('board_id') or _generate_random_hex()
+    num_relays = int(data.get('number_of_relays') or 4)
+    version = data.get('version_number') or "1.0.0"
+    build = data.get('build_number') or _generate_random_int(4)
     
+    # Process provided relays or generate new ones
+    provided_relays = data.get('relays', [])
+    relays = []
+    for i in range(num_relays):
+        if i < len(provided_relays) and provided_relays[i].get('id'):
+            relay_id = provided_relays[i]['id']
+        else:
+            relay_id = _generate_random_hex(32)
+            
+        relays.append({
+            "id": relay_id,
+            "name": f"Relay {i+1}",
+            "is_occupied": False
+        })
+
     board_data = {
         "board_id": board_id,
-        "number_of_relays": number_of_relays,
-        "version_number": "1.0.0",
-        "build_number": 1,
+        "number_of_relays": num_relays,
+        "version_number": version,
+        "build_number": build,
         "relays": relays,
+        "additional_features": data.get('additional_features', {}),
         "owner_id": None,
         "room_id": None,
         "is_suspended": False
@@ -50,9 +78,10 @@ def generate_board():
     return jsonify({
         "status": "success",
         "message": f"Board {board_id} created.",
-        "qr_data": board_id, # This is the only change in the response
+        "qr_data": board_id,
         "board_id": board_id
     }), 200
+
 
 @admin_api_bp.route('/users', methods=['GET'])
 @admin_required
@@ -101,6 +130,8 @@ def get_all_boards():
         board_list.append(board)
     return jsonify(board_list)
 
+
+
 @admin_api_bp.route('/delete-board', methods=['POST'])
 @admin_required
 def delete_board():
@@ -111,6 +142,34 @@ def delete_board():
         save_all_boards_to_db(all_boards)
         return jsonify({"status": "success", "message": f"Board {board_id_to_delete} has been deleted."})
     return jsonify({"status": "error", "message": "Board not found."}), 404
+
+@admin_api_bp.route('/delete-boards', methods=['POST'])
+@admin_required
+def delete_boards():
+    """Deletes a list of specified boards."""
+    data = request.get_json()
+    board_ids_to_delete = data.get('board_ids', [])
+
+    if not board_ids_to_delete:
+        return jsonify({"status": "error", "message": "No board IDs provided."}), 400
+    
+    all_boards = get_all_boards_from_db()
+    deleted_count = 0
+    for board_id in board_ids_to_delete:
+        if board_id in all_boards:
+            del all_boards[board_id]
+            deleted_count += 1
+            
+    save_all_boards_to_db(all_boards)
+    return jsonify({"status": "success", "message": f"{deleted_count} board(s) have been deleted."})
+
+@admin_api_bp.route('/delete-all-boards', methods=['POST'])
+@admin_required
+def delete_all_boards():
+    """Deletes all boards from the database."""
+    save_all_boards_to_db({}) # Save an empty dictionary
+    return jsonify({"status": "success", "message": "All boards have been deleted."})
+
 
 @admin_api_bp.route('/suspend-user', methods=['POST'])
 @admin_required
