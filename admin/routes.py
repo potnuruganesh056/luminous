@@ -1,6 +1,6 @@
 from functools import wraps
 from flask import Blueprint, render_template, request, flash, redirect, url_for, abort
-from flask_login import login_user, logout_user, current_user
+from flask_login import current_user
 from werkzeug.security import check_password_hash
 from auth.models import User
 from database.redis_db import get_all_users_from_db, get_all_data_from_db
@@ -72,8 +72,26 @@ def login():
 @admin_bp.route('/dashboard')
 @admin_required
 def dashboard():
+    """Renders the main dashboard page (QR Generator)."""
     return render_template('dashboard.html')
 
+@admin_bp.route('/users')
+@admin_required
+def users():
+    """Renders the user management page."""
+    return render_template('users.html')
+
+@admin_bp.route('/boards')
+@admin_required
+def boards():
+    """Renders the board management page."""
+    return render_template('boards.html')
+
+@admin_bp.route('/email')
+@admin_required
+def email():
+    """Renders the mass email page."""
+    return render_template('email.html')
 @admin_bp.route('/logout')
 @admin_required
 def logout():
