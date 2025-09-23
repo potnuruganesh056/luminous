@@ -26,9 +26,9 @@ def generate_board():
     data = request.get_json()
     number_of_relays = int(data.get('relay_count', 4))
     
-    board_id = uuid.uuid4().hex[:8]
+    board_id = uuid.uuid4().hex
     relays = [
-        {"id": uuid.uuid4().hex[:16], "name": f"Relay {i+1}", "is_occupied": False}
+        {"id": uuid.uuid4().hex, "name": f"Relay {i+1}", "is_occupied": False}
         for i in range(number_of_relays)
     ]
     
@@ -37,24 +37,20 @@ def generate_board():
         "number_of_relays": number_of_relays,
         "version_number": "1.0.0",
         "build_number": 1,
+        "relays": relays,
         "owner_id": None,
-        "relays": relays, # <-- Use the new list of objects
-        "additional_features": {}
+        "room_id": None,
+        "is_suspended": False
     }
     
     all_boards = get_all_boards_from_db()
     all_boards[board_id] = board_data
     save_all_boards_to_db(all_boards)
     
-    # --- USE STRONG ENCRYPTION ---
-    encrypted_string = encrypt_data(board_data)
-    if not encrypted_string:
-        return jsonify({"status": "error", "message": "Failed to encrypt board data."}), 500
-    
     return jsonify({
         "status": "success",
         "message": f"Board {board_id} created.",
-        "qr_data": encrypted_string, # This is now the encrypted string
+        "qr_data": board_id, # This is the only change in the response
         "board_id": board_id
     }), 200
 
