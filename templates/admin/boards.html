@@ -1,0 +1,133 @@
+{% extends "admin/admin_base.html" %}
+{% block title %}Board Management{% endblock %}
+
+{% block admin_content %}
+<div class="flex justify-between items-center mb-6">
+    <h2 class="text-4xl font-bold">Board Management</h2>
+    <div>
+        <button id="delete-selected-btn" class="px-4 py-2 bg-yellow-600 hover:bg-yellow-700 rounded-lg font-bold mr-2 disabled:opacity-50" disabled>Delete Selected</button>
+        <button id="delete-all-btn" class="px-4 py-2 bg-red-600 hover:bg-red-700 rounded-lg font-bold">Delete All</button>
+    </div>
+</div>
+<div class="bg-gray-800 p-6 rounded-lg shadow-lg overflow-x-auto">
+   <table id="board-table" class="display w-full" style="width:100%">
+       <thead>
+           <tr>
+               <th><input type="checkbox" id="select-all-checkbox"></th>
+               <th>Board ID</th>
+               <th>Relays</th>
+               <th>Version</th>
+               <th>Owner</th>
+               <th>Status</th>
+               <th>Actions</th>
+           </tr>
+       </thead>
+       <tbody></tbody>
+   </table>
+</div>
+{% endblock %}
+
+{% block page_scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        let boardTable;
+
+        function loadBoards() {
+            if ($.fn.DataTable.isDataTable('#board-table')) {
+                boardTable.ajax.reload();
+                return;
+            }
+            boardTable = $('#board-table').DataTable({
+                ajax: { url: '/api/admin/boards', dataSrc: '' },
+                columns: [
+                    { data: null, defaultContent: '', orderable: false, className: 'select-checkbox' },
+                    { data: 'board_id', className: 'font-mono text-sm' },
+                    { data: 'number_of_relays' },
+                    { data: 'version_number' },
+                    { data: 'owner_id', render: data => data ? data.substring(0, 8) + '...' : '<span class="text-gray-500">Unassigned</span>' },
+                    { data: 'is_suspended', render: data => data ? '<span class="text-yellow-400">Suspended</span>' : '<span class="text-green-400">Active</span>' },
+                    { 
+                        data: null, 
+                        orderable: false, 
+                        render: (data, type, row) => `
+                            <button class="download-qr-btn text-blue-400 hover:text-blue-300" data-id="${row.board_id}" title="Download QR"><i class="fas fa-qrcode"></i></button>
+                            <button class="delete-board-btn text-red-400 hover:text-red-600 ml-4" data-id="${row.board_id}" title="Delete Board"><i class="fas fa-trash"></i></button>
+                        `
+                    }
+                ],
+                // Advanced Features
+                select: { style: 'os', selector: 'td:first-child' },
+                dom: 'Bfrltip', // B for buttons, f for filter, etc.
+                buttons: [
+                    'pageLength',
+                    { extend: 'csv', text: 'Export All (CSV)', exportOptions: { modifier: { selected: null } } },
+                    { extend: 'excel', text: 'Export All (Excel)', exportOptions: { modifier: { selected: null } } },
+                    {
+                        text: 'Export Selected (CSV)',
+                        action: function (e, dt, node, config) {
+                            // Manually trigger the CSV export but only for selected rows
+                            $.fn.dataTable.ext.buttons.csvHtml5.action.call(this, e, dt, node, { ...config, exportOptions: { modifier: { selected: true } } });
+                        }
+                    }
+                ],
+                responsive: true
+            });
+
+            // --- EVENT LISTENERS for table functionality ---
+            const deleteSelectedBtn = document.getElementById('delete-selected-btn');
+
+            boardTable.on('select deselect', () => {
+                const selectedCount = boardTable.rows({ selected: true }).count();
+                deleteSelectedBtn.disabled = selectedCount === 0;
+                document.getElementById('select-all-checkbox').checked = (selectedCount === boardTable.rows().count() && selectedCount > 0);
+            });
+
+            $('#board-table tbody').on('click', '.download-qr-btn', function() {
+                const boardId = $(this).data('id');
+                const canvas = document.createElement('canvas');
+                new QRious({ element: canvas, value: boardId, size: 256 });
+                const link = document.createElement('a');
+                link.download = `${boardId}-qr.png`;
+                link.href = canvas.toDataURL();
+                link.click();
+            });
+            
+            $('#board-table tbody').on('click', '.delete-board-btn', function() {
+                 const boardId = $(this).data('id');
+                 if (confirm(`Are you sure you want to delete board ${boardId}?`)) {
+                    fetch('/api/admin/delete-boards', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ board_ids: [boardId] })
+                    }).then(() => boardTable.ajax.reload());
+                }
+            });
+        }
+
+        document.getElementById('select-all-checkbox').addEventListener('click', (e) => {
+            if (e.target.checked) boardTable.rows().select();
+            else boardTable.rows().deselect();
+        });
+
+        document.getElementById('delete-selected-btn').addEventListener('click', () => {
+            const selectedIds = boardTable.rows({ selected: true }).data().toArray().map(row => row.board_id);
+            if (selectedIds.length === 0) return;
+            if (confirm(`Are you sure you want to delete ${selectedIds.length} selected boards?`)) {
+                fetch('/api/admin/delete-boards', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ board_ids: selectedIds })
+                }).then(() => boardTable.ajax.reload());
+            }
+        });
+        
+        document.getElementById('delete-all-btn').addEventListener('click', () => {
+            if (confirm('DANGER: Are you sure you want to delete ALL boards? This action cannot be undone.')) {
+                fetch('/api/admin/delete-all-boards', { method: 'POST' }).then(() => boardTable.ajax.reload());
+            }
+        });
+
+        loadBoards();
+    });
+</script>
+{% endblock %}
