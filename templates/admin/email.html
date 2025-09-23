@@ -1,0 +1,72 @@
+{% extends "admin/admin_base.html" %}
+{% block title %}Mass Email{% endblock %}
+
+{% block admin_content %}
+<h2 class="text-4xl font-bold mb-6">Send Mass Email</h2>
+<div class="bg-gray-800 p-6 rounded-lg shadow-lg max-w-xl">
+   <p class="text-gray-400 mb-4 text-sm">This form will send an email to every user in the database who has a registered email address. This action cannot be undone.</p>
+   <form id="mass-email-form" class="space-y-4">
+       <div>
+           <label for="email-subject" class="block text-sm font-medium">Subject</label>
+           <input type="text" id="email-subject" class="mt-1 block w-full bg-gray-700 border border-gray-600 rounded-md p-2" required>
+       </div>
+       <div>
+           <label for="email-body" class="block text-sm font-medium">Message</label>
+           <textarea id="email-body" rows="10" class="mt-1 block w-full bg-gray-700 border border-gray-600 rounded-md p-2" required></textarea>
+       </div>
+       <button type="submit" id="send-email-btn" class="w-full px-4 py-2 bg-indigo-600 hover:bg-indigo-700 rounded-lg font-bold transition-colors">
+            <i class="fas fa-paper-plane mr-2"></i>Send to All Users
+        </button>
+   </form>
+</div>
+{% endblock %}
+
+{% block page_scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const emailForm = document.getElementById('mass-email-form');
+        const sendButton = document.getElementById('send-email-btn');
+
+        emailForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const subject = document.getElementById('email-subject').value;
+            const body = document.getElementById('email-body').value;
+
+            if (!subject.trim() || !body.trim()) {
+                alert('Subject and Message cannot be empty.');
+                return;
+            }
+
+            if (confirm('Are you sure you want to send this email to ALL users?')) {
+                const originalButtonText = sendButton.innerHTML;
+                sendButton.innerHTML = `<i class="fas fa-spinner fa-spin mr-2"></i>Sending...`;
+                sendButton.disabled = true;
+
+                try {
+                    const response = await fetch('/api/admin/send-mass-email', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ subject, body })
+                    });
+
+                    const result = await response.json();
+
+                    if (response.ok) {
+                        alert(`Success: ${result.message}`);
+                        emailForm.reset();
+                    } else {
+                        throw new Error(result.message || 'An unknown error occurred.');
+                    }
+                } catch (error) {
+                    alert(`Error: ${error.message}`);
+                    console.error("Failed to send mass email:", error);
+                } finally {
+                    sendButton.innerHTML = originalButtonText;
+                    sendButton.disabled = false;
+                }
+            }
+        });
+    });
+</script>
+{% endblock %}
