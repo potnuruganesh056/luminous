@@ -23,6 +23,8 @@ from admin.api_routes import admin_api_bp     # <-- IMPORT ADMIN API
 # Configure OAuth providers
 from oauth.providers import configure_oauth_providers
 
+from security import generate_csrf_token, setup_security_headers, setup_logging # <-- Import security functions
+
 # --- Application Setup ---
 app = Flask(__name__)
 app.config.from_object(Config)
@@ -36,6 +38,15 @@ mail = Mail(app)
 
 # OAuth Configuration
 oauth = OAuth(app)
+
+# --- NEW: Setup Security Features ---
+setup_logging(app)
+setup_security_headers(app)
+
+@app.context_processor
+def inject_csrf_token():
+    """Make CSRF token available to all templates."""
+    return dict(csrf_token=generate_csrf_token)
 
 app.register_blueprint(auth_bp)
 app.register_blueprint(api_bp, url_prefix='/api')
@@ -52,9 +63,8 @@ configure_oauth_providers(oauth)
 with app.app_context():
     migrate_json_to_redis()
     init_admin(app)
-run_mqtt_thread()
+    run_mqtt_thread()
 
 if __name__ == '__main__':
-    
     port = int(os.environ.get('PORT', 5000))
     app.run(host='0.0.0.0', port=port)
