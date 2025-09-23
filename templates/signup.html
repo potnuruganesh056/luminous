@@ -61,7 +61,39 @@
         </div>
     </div>
 </div>
+
 <script>
     document.documentElement.classList.remove('dark');
+    document.addEventListener('DOMContentLoaded', function() {
+        const passwordField = document.getElementById('password');
+        const confirmField = document.getElementById('confirm_password');
+        
+        if (passwordField && confirmField) {
+            function validatePassword() {
+                const password = passwordField.value;
+                const confirm = confirmField.value;
+                
+                const hasUpper = /[A-Z]/.test(password);
+                const hasLower = /[a-z]/.test(password);
+                const hasNumber = /[0-9]/.test(password);
+                const minLength = password.length >= 8;
+                
+                if (!minLength || !hasUpper || !hasLower || !hasNumber) {
+                    passwordField.setCustomValidity('Password must be at least 8 characters long and contain uppercase, lowercase, and numbers.');
+                } else {
+                    passwordField.setCustomValidity('');
+                }
+                
+                if (password !== confirm && confirm !== '') {
+                    confirmField.setCustomValidity('Passwords do not match.');
+                } else {
+                    confirmField.setCustomValidity('');
+                }
+            }
+            
+            passwordField.addEventListener('input', validatePassword);
+            confirmField.addEventListener('input', validatePassword);
+        }
+    });
 </script>
 {% endblock %}
