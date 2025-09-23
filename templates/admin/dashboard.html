@@ -1,11 +1,40 @@
 {% extends "admin/admin_base.html" %}
 {% block title %}QR Generator{% endblock %}
+
 {% block admin_content %}
 <h2 class="text-4xl font-bold mb-6">Board Generator</h2>
 <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
     <!-- Form Section -->
     <div class="bg-gray-800 p-6 rounded-lg shadow-lg">
-        <form id="generate-board-form" class="space-y-4"><!-- ... Form content from previous version ... --></form>
+        <form id="generate-board-form" class="space-y-4">
+            <div>
+                <label for="board_id" class="block text-sm font-medium">Board ID (Optional)</label>
+                <input type="text" id="board_id" class="mt-1 block w-full bg-gray-700 border-gray-600 rounded-md p-2" placeholder="Auto-generates if blank">
+            </div>
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label for="number_of_relays" class="block text-sm font-medium">Number of Relays</label>
+                    <input type="number" id="number_of_relays" class="mt-1 block w-full bg-gray-700 border-gray-600 rounded-md p-2" placeholder="Default: 4" min="1">
+                </div>
+                <div>
+                    <label for="build_number" class="block text-sm font-medium">Build Number (Optional)</label>
+                    <input type="number" id="build_number" class="mt-1 block w-full bg-gray-700 border-gray-600 rounded-md p-2" placeholder="Auto-generates">
+                </div>
+            </div>
+            <div>
+                <label for="version_number" class="block text-sm font-medium">Version (Optional)</label>
+                <input type="text" id="version_number" class="mt-1 block w-full bg-gray-700 border-gray-600 rounded-md p-2" placeholder="Default: 1.0.0">
+            </div>
+            <div id="relay-id-container"></div>
+            <div class="border-t border-gray-700 pt-4">
+                <div class="flex justify-between items-center mb-2">
+                    <h3 class="text-lg font-semibold">Additional Features</h3>
+                    <button type="button" id="add-feature-btn" class="text-indigo-400 hover:text-indigo-300 font-semibold">+ Add Feature</button>
+                </div>
+                <div id="additional-features-container" class="space-y-2"></div>
+            </div>
+            <button type="submit" id="generate-qr-btn" class="w-full px-5 py-2 bg-indigo-600 hover:bg-indigo-700 rounded-lg font-bold">Generate Board & QR</button>
+        </form>
     </div>
     <!-- QR Result Section -->
     <div id="qr-result" class="hidden text-center bg-gray-800 p-6 rounded-lg shadow-lg flex flex-col items-center justify-center">
@@ -19,12 +48,83 @@
 {% block page_scripts %}
 <script>
     document.addEventListener('DOMContentLoaded', () => {
-        // --- DYNAMIC FORM LOGIC ---
-        // ... (All JavaScript for the dynamic form, adding features, etc.)
+        const numRelaysInput = document.getElementById('number_of_relays');
+        const relayIdContainer = document.getElementById('relay-id-container');
         
-        // --- FORM SUBMISSION ---
+        numRelaysInput.addEventListener('input', () => {
+            const count = parseInt(numRelaysInput.value, 10);
+            relayIdContainer.innerHTML = '';
+            if (isNaN(count) || count <= 0) return;
+
+            const header = document.createElement('label');
+            header.className = 'block text-sm font-medium mt-4';
+            header.textContent = 'Relay IDs (Optional)';
+            relayIdContainer.appendChild(header);
+
+            for (let i = 0; i < count; i++) {
+                const input = document.createElement('input');
+                input.type = 'text';
+                input.className = 'relay-id-input mt-1 block w-full bg-gray-700 border-gray-600 rounded-md p-2 text-sm';
+                input.placeholder = `Relay ${i + 1} ID (Auto-generates if blank)`;
+                relayIdContainer.appendChild(input);
+            }
+        });
+
+        document.getElementById('add-feature-btn').addEventListener('click', () => {
+            const container = document.getElementById('additional-features-container');
+            const featureDiv = document.createElement('div');
+            featureDiv.className = 'feature-group grid grid-cols-2 gap-2 items-center';
+            featureDiv.innerHTML = `
+                <input type="text" class="feature-key bg-gray-700 p-2 rounded-md text-sm" placeholder="Key">
+                <div class="flex items-center gap-2">
+                    <input type="text" class="feature-value bg-gray-700 p-2 rounded-md text-sm w-full" placeholder="Value">
+                    <button type="button" class="remove-feature-btn text-red-400 hover:text-red-600 text-lg">&times;</button>
+                </div>
+            `;
+            container.appendChild(featureDiv);
+        });
+
+        document.getElementById('additional-features-container').addEventListener('click', (e) => {
+            if (e.target.classList.contains('remove-feature-btn')) {
+                e.target.closest('.feature-group').remove();
+            }
+        });
+        
         document.getElementById('generate-board-form').addEventListener('submit', async (e) => {
-            // ... (Full JavaScript logic for form submission and QR generation)
+            e.preventDefault();
+            
+            const relays = Array.from(document.querySelectorAll('.relay-id-input')).map(input => ({ id: input.value }));
+            const features = {};
+            document.querySelectorAll('.feature-group').forEach(group => {
+                const key = group.querySelector('.feature-key').value;
+                const value = group.querySelector('.feature-value').value;
+                if (key) features[key] = value;
+            });
+
+            const formData = {
+                board_id: document.getElementById('board_id').value,
+                number_of_relays: document.getElementById('number_of_relays').value,
+                version_number: document.getElementById('version_number').value,
+                build_number: document.getElementById('build_number').value,
+                relays: relays,
+                additional_features: features
+            };
+
+            const response = await fetch('/api/admin/generate-board', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(formData)
+            });
+            const result = await response.json();
+
+            if (result.status === 'success') {
+                document.getElementById('qr-result').classList.remove('hidden');
+                document.getElementById('board-id-display').textContent = result.board_id;
+                new QRious({ element: document.getElementById('qr-canvas'), value: result.qr_data, size: 200 });
+                if (window.boardTable) window.boardTable.ajax.reload();
+            } else {
+                alert(`Error: ${result.message}`);
+            }
         });
     });
 </script>
