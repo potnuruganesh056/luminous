@@ -4,7 +4,93 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from auth.models import User
 from database.redis_db import get_all_users_from_db
 from oauth.helpers import find_or_create_oauth_user
-from security import rate_limit, validate_password, validate_input_length, check_suspicious_activity, log_security_event
+import re  # ADD THIS MISSING IMPORT
+
+# Import security functions - you'll need to either:
+# 1. Create the security.py file as shown, OR
+# 2. Add these functions directly to this file
+
+# If you don't want to create security.py, add these functions here:
+import time
+from collections import defaultdict
+
+rate_limit_store = defaultdict(list)
+
+def rate_limit(max_requests=100, window=3600):
+    """Simple rate limiting decorator"""
+    def decorator(f):
+        def decorated_function(*args, **kwargs):
+            key = request.remote_addr
+            now = time.time()
+            
+            # Clean old entries
+            rate_limit_store[key] = [
+                timestamp for timestamp in rate_limit_store[key] 
+                if now - timestamp < window
+            ]
+            
+            # Check rate limit
+            if len(rate_limit_store[key]) >= max_requests:
+                flash('Too many attempts. Please try again later.', 'error')
+                return redirect(url_for('auth.signin'))
+            
+            # Add current request
+            rate_limit_store[key].append(now)
+            return f(*args, **kwargs)
+        
+        decorated_function.__name__ = f.__name__
+        return decorated_function
+    return decorator
+
+def validate_password(password):
+    """Validate password strength"""
+    if len(password) < 8:
+        return False, "Password must be at least 8 characters long"
+    
+    if not re.search(r'[A-Z]', password):
+        return False, "Password must contain at least one uppercase letter"
+    
+    if not re.search(r'[a-z]', password):
+        return False, "Password must contain at least one lowercase letter"
+    
+    if not re.search(r'[0-9]', password):
+        return False, "Password must contain at least one number"
+    
+    return True, "Password is valid"
+
+def validate_input_length(value, field_name, max_length):
+    """Validate input length"""
+    if not value:
+        return True, ""
+    
+    if len(str(value)) > max_length:
+        return False, f"{field_name} is too long (maximum {max_length} characters)"
+    
+    return True, ""
+
+def check_suspicious_activity(ip_address=None, action=None):
+    """Simple suspicious activity check"""
+    key = f"activity_{ip_address}_{action}"
+    now = time.time()
+    
+    # Clean old entries (last 1 hour)
+    rate_limit_store[key] = [
+        timestamp for timestamp in rate_limit_store[key] 
+        if now - timestamp < 3600
+    ]
+    
+    # Add current activity
+    rate_limit_store[key].append(now)
+    
+    # Check for suspicious patterns
+    if len(rate_limit_store[key]) > 20:  # More than 20 actions per hour
+        return True
+    
+    return False
+
+def log_security_event(event_type, details):
+    """Log security events"""
+    current_app.logger.warning(f"SECURITY EVENT: {event_type} - Details: {details}")
 
 auth_bp = Blueprint('auth', __name__)
 
@@ -25,7 +111,7 @@ def signin():
                 return redirect(url_for('auth.signin'))
             
             # Validate input lengths
-            valid, message = validate_input_length(username, 'Username', current_app.config.get('MAX_USERNAME_LENGTH', 50))
+            valid, message = validate_input_length(username, 'Username', 50)
             if not valid:
                 flash(message, 'error')
                 return redirect(url_for('auth.signin'))
@@ -88,7 +174,7 @@ def signup():
                 return redirect(url_for('auth.signup'))
             
             # Validate input lengths
-            valid, message = validate_input_length(username, 'Username', current_app.config.get('MAX_USERNAME_LENGTH', 50))
+            valid, message = validate_input_length(username, 'Username', 50)
             if not valid:
                 flash(message, 'error')
                 return redirect(url_for('auth.signup'))
